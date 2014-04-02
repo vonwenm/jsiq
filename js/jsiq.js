@@ -39,6 +39,15 @@ define(['lodash', 'parser'], function(_, parser)
 				return this.items;
 			}
 		},
+		boolean: {
+			value: function()
+			{
+				if (!this.items.length)
+					return false;
+				
+				return !!this.value();
+			}
+		},
 		string: {
 			value: function()
 			{

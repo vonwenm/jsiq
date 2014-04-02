@@ -30,12 +30,15 @@ ws    [\s]
 "false"                   return 'FALSE';
 "eq"                      return 'EQ';
 "ne"                      return 'NE';
-"lt"                       return 'LT';
+"lt"                      return 'LT';
 "le"                      return 'LE';
 "gt"                      return 'GT';
-"ge"                       return 'GE';
-"&&"                      return 'AND';
+"ge"                      return 'GE';
+"and"                     return 'AND';
+"or"                      return 'OR';
+"not"					  return 'NOT';
 "||"                      return 'STR_CAT';
+"boolean"				  return 'BOOL_OP';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -50,7 +53,7 @@ ws    [\s]
 "-"                       return '-';
 "*"                       return '*';
 "/"                       return '/';
-"%"                       return '%';
+"mod"                     return 'MOD';
 "to"                      return 'RANGE_OP';
 [A-Za-z_$][A-Za-z_$0-9]+  return 'IDENT';
 <<EOF>>                   return 'EOF';
@@ -62,12 +65,11 @@ ws    [\s]
 %left '?'
 %left RANGE_OP
 %left STR_CAT
-%left AND
+%left AND OR NOT
 %left EQ NE
 %left GT GE LT LE
 %left '+' '-'
-%left '*' '/' '%'
-%left NOT
+%left '*' '/' MOD
 %left '.'
 
 %start jsoniq
@@ -88,7 +90,12 @@ ExprSingle
     | RangeExpression
     | AdditiveExpression
     | MultiplicativeExpression
-    | StringConcat
+    | StringConcatExpression
+    | ComparisonExpression
+    | LogicExpression
+    | ConversionExpression
+    | '(' ExprSingle ')' { $$ = $2; }
+    | '(' ')' { $$ = yy.seq(); }
     ;
 
 Item
@@ -118,7 +125,7 @@ ArrayItems
 
 Object
     : '{' '}' { $$ = {}; }
-    | '{' ObjectProperties '}'  { $$ = $1; }
+    | '{' ObjectProperties '}'  { $$ = $2; }
     ;
 
 ObjectProperties
@@ -141,11 +148,30 @@ AdditiveExpression
 	; 
 
 MultiplicativeExpression
-	: ExprSingle '%' ExprSingle { $$ = yy.seq($1.value() % $3.value()); }
+	: ExprSingle MOD ExprSingle { $$ = yy.seq($1.value() % $3.value()); }
 	| ExprSingle '/' ExprSingle { $$ = yy.seq($1.value() / $3.value()); }
 	| ExprSingle '*' ExprSingle { $$ = yy.seq($1.value() * $3.value()); }
 	;
 
-StringConcat
+StringConcatExpression
 	: ExprSingle STR_CAT ExprSingle { $$ = yy.seq($1.string() + $3.string()); }
+	;
+
+ComparisonExpression
+	: ExprSingle EQ ExprSingle { $$ = yy.seq($1.value() == $3.value()); }
+	| ExprSingle NE ExprSingle { $$ = yy.seq($1.value() != $3.value()); }
+	| ExprSingle LT ExprSingle { $$ = yy.seq($1.value() < $3.value()); }
+	| ExprSingle LE ExprSingle { $$ = yy.seq($1.value() <= $3.value()); }
+	| ExprSingle GT ExprSingle { $$ = yy.seq($1.value() > $3.value()); }
+	| ExprSingle GE ExprSingle { $$ = yy.seq($1.value() >= $3.value()); }
+	;
+
+LogicExpression
+	: ExprSingle OR ExprSingle { $$ = yy.seq(!!$1.value() || !!$3.value()); }
+	| ExprSingle AND ExprSingle { $$ = yy.seq(!!$1.value() && !!$3.value()); }
+	| NOT ExprSingle { $$ = yy.seq(!$2.value()); }
+	;
+
+ConversionExpression
+	: BOOL_OP '(' ExprSingle ')' { $$ = yy.seq($3.boolean()); }
 	;
