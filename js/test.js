@@ -76,6 +76,25 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('{ "foobar" : "bar" }.("foo" || "bar")'), "bar", 'object lookup with a nested expression');
 		
 		check(jsiq.parse('{ "1" : "bar" }.(1)'), "bar", 'object lookup with a nested expression');
+		
+		check(jsiq.parse('[]'), [], 'array');
+		
+		check(jsiq.parse('[ 1, 2, 3, 4, 5, 6 ]'), [ 1, 2, 3, 4, 5, 6 ], 'array construction');
+		
+		check(jsiq.parse('[[1]]'), [[1]], 'nested array');
+		
+		check(jsiq.parse('[0, [1]], [[0], 1]'), [[0, [1]], [[0], 1]], 'non-empty nested array');
+		
+		check(jsiq.parse('[ "foo", 3.14, [ "Go", "Boldly", "When", "No", "Man", "Has", "Gone", "Before" ], { "foo" : "bar" }, true, false, null ]'),
+			[ "foo", 3.14, [ "Go", "Boldly", "When", "No", "Man", "Has", "Gone", "Before" ], { "foo" : "bar" }, true, false, null ], 'nested array construction');
+			
+		check(jsiq.parse('[ "foo", "bar" ][[2]]'), "bar", 'basic array indexing');
+		
+		check(jsiq.parse('([ 1, 2, 3 ], [ 4, 5, 6 ])[[2]]'), [2, 5], 'multi array indexing');
+		
+		check(jsiq.parse('([ 1, 2, 3 ], [ 4, 5, 6 ], { "foo" : "bar" }, true)[[3]]'), [3, 6], 'multi array mixed indexing');
+		
+		check(jsiq.parse('[ "foo", "bar" ] [[ 1 + 1 ]]'), "bar", 'multi array expression indexing');
 	});
 	
 	// start QUnit.

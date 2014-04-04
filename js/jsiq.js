@@ -23,12 +23,9 @@ define(['lodash', 'parser'], function(_, parser)
 		    value: function(itm)
 		    {
 		        if (itm instanceof Sequence)
-		        {
-		            this.items.push.apply(this.items, itm.items);
-		            return;
-		        }
-		        
-		        this.items.push(itm);                 
+		        	this.items.push.apply(this.items, itm.items);
+		        else
+		        	this.items.push(itm);                 
 		    } 
 		},
 		at: {
@@ -41,6 +38,13 @@ define(['lodash', 'parser'], function(_, parser)
 			value: function(itm)
 			{
 				return new Sequence(_.pluck(this.items, itm).filter(function(itm){ return itm !== undefined; }));
+			}
+		},
+		index: {
+		    value: function(idx)
+			{
+				var arrays = this.items.filter(function(itm) { return _.isArray(itm); });
+				return new Sequence(_.pluck(arrays, idx - 1).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
 		value: {

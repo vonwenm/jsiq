@@ -72,6 +72,10 @@ $[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
 %left '+' '-'
 %left '*' '/' MOD
 %left '.'
+%left UNARY
+
+%nonassoc '['
+%nonassoc EXPR_WITHOUT_POST
 
 %start jsoniq
 
@@ -87,7 +91,7 @@ Expression
     ;
 
 ExprSingle
-    : Item { $$ = yy.seq($1); }
+	: Item
     | RangeExpression
     | AdditiveExpression
     | MultiplicativeExpression
@@ -97,14 +101,15 @@ ExprSingle
     | ConversionExpression
     | UnaryExpression
     | ObjectLookup
+    | ArrayLookup
     | '(' Expression ')' { $$ = $2; }
     | '(' ')' { $$ = yy.seq(); }
     ;
-
+    
 Item
-    : Atomic { $$ = $1; }
-    | Object { $$ = $1; }
-    | Array { $$ = $1; }
+    : Atomic { $$ = yy.seq($1); }
+    | Object { $$ = yy.seq($1); }
+    | Array { $$ = yy.seq($1); }
     ;
 
 Atomic
@@ -122,8 +127,8 @@ Array
     ;
 
 ArrayItems
-    : ArrayItems ',' ExprSingle { $$ = $1.concat($3); }
-    | ExprSingle { $$ = [ $1 ]; }
+    : ArrayItems ',' ExprSingle { $1.push($3.value()); $$ = $1; }
+    | ExprSingle { $$ = [ $1.value() ]; }
     ;
 
 Object
@@ -137,7 +142,7 @@ ObjectProperties
     ;
 
 PropertyPair
-	: ExprSingle ':' ExprSingle { $$ = [$1.value(), $3]; }
+	: ExprSingle ':' ExprSingle { $$ = [$1.value(), $3.value()]; }
 	| IDENT ':' ExprSingle { $$ = [$1, $3]; }
 	;
 
@@ -146,9 +151,13 @@ ObjectLookup
 	| ExprSingle '.' ExprSingle { $$ = $1.lookup($3.string()); }
 	;
 
+ArrayLookup
+	: ExprSingle '[' '[' ExprSingle ']' ']' { $$ = $1.index( $4.number() ); }
+	;
+
 UnaryExpression
-	: '+' ExprSingle { $$ = +$2.value(); }
-	| '-' ExprSingle { $$ = -$2.value(); }
+	: '+' ExprSingle %prec UNARY { $$ = +$2.number(); }
+	| '-' ExprSingle %prec UNARY { $$ = -$2.number(); }
 	;
 
 RangeExpression
