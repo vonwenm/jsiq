@@ -82,65 +82,65 @@ $[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
 %% /* Parser Grammar */
 
 jsoniq
-    : Expression EOF { $$ = yy.expr.multi($1); return $$; }
-    ;
+	: Expression EOF { $$ = yy.expr.multi($1); return $$; }
+	;
 
 Expression
-    : Expression ',' ExprSingle { $1.push($3); $$ = $1; }
-    | ExprSingle { $$ = [ $1 ]; }
-    ;
+	: Expression ',' ExprSingle { $1.push($3); $$ = $1; }
+	| ExprSingle { $$ = [ $1 ]; }
+	;
 
 ExprSingle
 	: Item
-    | RangeExpression
-    | AdditiveExpression
-    | MultiplicativeExpression
-    | StringConcatExpression
-    | ComparisonExpression
-    | LogicExpression
-    | ConversionExpression
-    | UnaryExpression
-    | ObjectLookup
-    | ArrayLookup
-    | ArrayUnbox
-    | '(' Expression ')' { $$ = yy.expr.multi($2); }
-    | '(' ')' { $$ = yy.expr.empty(); }
-    ;
-    
+	| RangeExpression
+	| AdditiveExpression
+	| MultiplicativeExpression
+	| StringConcatExpression
+	| ComparisonExpression
+	| LogicExpression
+	| ConversionExpression
+	| UnaryExpression
+	| ObjectLookup
+	| ArrayLookup
+	| ArrayUnbox
+	| '(' Expression ')' { $$ = yy.expr.multi($2); }
+	| '(' ')' { $$ = yy.expr.empty(); }
+	;
+	
 Item
-    : Atomic { $$ = yy.expr.atomic($1); }
-    | Object { $$ = $1; }
-    | Array { $$ = $1; }
-    ;
+	: Atomic { $$ = yy.expr.atomic($1); }
+	| Object { $$ = $1; }
+	| Array { $$ = $1; }
+	;
 
 Atomic
-    : NUMBER { $$ = +$1; }
-    | STRING { $$ = $1; }
-    | TRUE { $$ = true; }
-    | FALSE { $$ = false; }
-    | NULL { $$ = null; }
-    | UNDEFINED { $$ = undefined; }
-    ;
+	: NUMBER { $$ = +$1; }
+	| STRING { $$ = $1; }
+	| TRUE { $$ = true; }
+	| FALSE { $$ = false; }
+	| NULL { $$ = null; }
+	| UNDEFINED { $$ = undefined; }
+	;
 
 Array
-    : '[' ']' { $$ = yy.expr.array([]); }
-    | '[' ArrayItems ']' { $$ = yy.expr.array($2); }
-    ;
+	: '[' ']' { $$ = yy.expr.array([]); }
+	| '[' ArrayItems ']' { $$ = yy.expr.array($2); }
+	;
 
 ArrayItems
-    : ArrayItems ',' ExprSingle { $1.push($3); $$ = $1; }
-    | ExprSingle { $$ = [ $1 ]; }
-    ;
+	: ArrayItems ',' ExprSingle { $1.push($3); $$ = $1; }
+	| ExprSingle { $$ = [ $1 ]; }
+	;
 
 Object
-    : '{' '}' { $$ = yy.expr.object({}); }
-    | '{' ObjectProperties '}'  { $$ = yy.expr.object($2); }
-    ;
+	: '{' '}' { $$ = yy.expr.object({}); }
+	| '{' ObjectProperties '}'  { $$ = yy.expr.object($2); }
+	;
 
 ObjectProperties
-    : ObjectProperties ',' PropertyPair { $1.push($3); $$ = $1; }
-    | PropertyPair { $$ = [ $1 ]; }
-    ;
+	: ObjectProperties ',' PropertyPair { $1.push($3); $$ = $1; }
+	| PropertyPair { $$ = [ $1 ]; }
+	;
 
 PropertyPair
 	: ExprSingle ':' ExprSingle { $$ = [$1, $3]; }

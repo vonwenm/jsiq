@@ -1,21 +1,21 @@
 require.config({
-    paths: {
-        jquery: 'jquery-1.11.0',
-        d3: 'd3/d3',
-        knockout: 'knockout-3.0.0',
-        QUnit: 'qunit-1.14.0'
-    },
-    shim: {
-        'knockout': {
-            exports: 'ko'
-        },
-        'lodash': {
-            exports: '_'
-        },
-        'bootstrap': {
+	paths: {
+		jquery: 'jquery-1.11.0',
+		d3: 'd3/d3',
+		knockout: 'knockout-3.0.0',
+		QUnit: 'qunit-1.14.0'
+	},
+	shim: {
+		'knockout': {
+			exports: 'ko'
+		},
+		'lodash': {
+			exports: '_'
+		},
+		'bootstrap': {
 			deps: ['jquery']
-        },
-        'd3': {
+		},
+		'd3': {
 			exports: 'd3'
 		},
 		'QUnit': {
@@ -25,7 +25,7 @@ require.config({
 				QUnit.config.autostart = false;
 			}
 		}
-    }
+	}
 });
 
 require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
