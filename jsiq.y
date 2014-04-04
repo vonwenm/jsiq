@@ -53,10 +53,12 @@ ws    [\s]
 "-"                       return '-';
 "*"                       return '*';
 "/"                       return '/';
+"#"                       return '#';
 "mod"                     return 'MOD';
 "to"                      return 'RANGE_OP';
-$[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
-[A-Za-z_$][A-Za-z_$0-9]+  return 'IDENT';
+"$$"                      return 'VAR_CONTEXT';
+$[A-Za-z_][A-Za-z_0-9]+   return 'VAR_REF';
+[A-Za-z_][A-Za-z_0-9]+    return 'IDENT';
 <<EOF>>                   return 'EOF';
 
 /lex
@@ -75,7 +77,6 @@ $[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
 %left UNARY
 
 %nonassoc '['
-%nonassoc EXPR_WITHOUT_POST
 
 %start jsoniq
 
@@ -103,10 +104,12 @@ ExprSingle
 	| ObjectLookup
 	| ArrayLookup
 	| ArrayUnbox
+	| SequencePredicate
+	| ContextItem
 	| '(' Expression ')' { $$ = yy.expr.multi($2); }
 	| '(' ')' { $$ = yy.expr.empty(); }
 	;
-	
+
 Item
 	: Atomic { $$ = yy.expr.atomic($1); }
 	| Object { $$ = $1; }
@@ -153,11 +156,19 @@ ObjectLookup
 	;
 
 ArrayLookup
-	: ExprSingle '[' '[' ExprSingle ']' ']' { $$ = yy.expr.index($1, $4); }
+	: ExprSingle '[' '#' ExprSingle '#' ']' { $$ = yy.expr.index($1, $4); }
 	;
 	
 ArrayUnbox
 	: ExprSingle '[' ']' { $$ = yy.expr.unbox($1); }
+	;
+
+SequencePredicate
+	: ExprSingle '[' ExprSingle ']' { $$ = yy.expr.predicate($1, $3); }
+	;
+
+ContextItem
+	: VAR_CONTEXT { $$ = yy.expr.context(); }
 	;
 
 UnaryExpression

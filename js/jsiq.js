@@ -13,12 +13,6 @@ define(['lodash', 'parser'], function(_, parser)
 	}
 	
 	Object.defineProperties(Sequence.prototype, {
-		getitems: {
-			value: function()
-			{
-				return this.items;
-			}
-		},
 		push: {
 			value: function(itm)
 			{
@@ -111,11 +105,44 @@ define(['lodash', 'parser'], function(_, parser)
 		}
 	});
 	
-	function Expression(scope, evl)
+	function Expression(evl)
 	{
-		this.scope = scope.reverse();
-		this.eval = evl;
+		this.parent = null;
+		this.scope = {};
+		
+		var self = this;
+		this.eval = function()
+		{
+			return evl(self);
+		};
 	}
+	
+	Object.defineProperties(Expression.prototype, {
+		lookup: {
+			value: function(name)
+			{
+				var val = this.scope[name];
+				if (val !== undefined)
+					return val;
+				
+				if (this.parent)
+					return this.parent.lookup(name);
+				
+				return undefined;
+			}
+		},
+		adopt: {
+			value: function()
+			{
+				var children = Array.prototype.slice.call(arguments);
+				var self = this;
+				children.forEach(function(child)
+				{
+					child.parent = self;
+				});
+			}
+		},
+	});
 	
 	function toseq(itm)
 	{
@@ -123,6 +150,15 @@ define(['lodash', 'parser'], function(_, parser)
 			return itm;
 		
 		return new Sequence([itm]);
+	}
+	
+	function toatomic(itm)
+	{
+		var seq = toseq(itm);
+		return new Expression(function(self)
+		{
+			return seq;
+		});
 	}
 	
 	var globalscope = [];
@@ -134,36 +170,34 @@ define(['lodash', 'parser'], function(_, parser)
 		expr: {
 			atomic: function(itm)
 			{
-				var seq = toseq(itm);
-				return new Expression(globalscope.slice(), function()
-				{
-					return seq;
-				});
+				return toatomic(itm);
 			},
 			multi: function(exprs)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
 					return new Sequence(exprs.map(function(expr)
 					{
+						self.adopt(expr);
 						return expr.eval().value();
 					}));
 				});
 			},
 			empty: function()
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
 					return new Sequence();
 				});
 			},
 			object: function(propvalues)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
 					var obj = {};
 					for(var i = 0; i < propvalues.length; ++i)
 					{
+						self.adopt(propvalues[i][0], propvalues[i][1]);
 						obj[ propvalues[i][0].eval().string() ] = propvalues[i][1].eval().value();
 					}
 				
@@ -172,43 +206,50 @@ define(['lodash', 'parser'], function(_, parser)
 			},
 			lookup: function(objexpr, nameexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(objexpr, nameexpr);
 					return objexpr.eval().lookup(nameexpr.eval().string());
 				});
 			},
 			index: function(arrexpr, idxexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(arrexpr, idxexpr);
 					return arrexpr.eval().index(idxexpr.eval().value());
 				});
 			},
 			unbox: function(arrexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(arrexpr);
 					return arrexpr.eval().unbox();
 				});
 			},
 			unary_plus: function(valexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(valexpr);
 					return toseq(valexpr.eval().number());
 				});
 			},
 			unary_minus: function(valexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(valexpr);
 					return toseq(-valexpr.eval().number());
 				});
 			},
 			range: function(minexpr, maxexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(minexpr, maxexpr);
+					
 					var mins = minexpr.eval(), maxs = maxexpr.eval();
 					if (mins.empty() || maxs.empty())
 						return new Sequence();
@@ -224,126 +265,197 @@ define(['lodash', 'parser'], function(_, parser)
 			},
 			plus: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().number() + twoexpr.eval().number());
 				});
 			},
 			minus: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().number() - twoexpr.eval().number());
 				});
 			},
 			mod: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().number() % twoexpr.eval().number());
 				});
 			},
 			div: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().number() / twoexpr.eval().number());
 				});
 			},
 			mul: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().number() * twoexpr.eval().number());
 				});
 			},
 			concat: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().string() + twoexpr.eval().string());
 				});
 			},
 			eq: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() == twoexpr.eval().value());
 				});
 			},
 			ne: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() != twoexpr.eval().value());
 				});
 			},
 			lt: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() < twoexpr.eval().value());
 				});
 			},
 			le: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() <= twoexpr.eval().value());
 				});
 			},
 			gt: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() > twoexpr.eval().value());
 				});
 			},
 			ge: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().value() >= twoexpr.eval().value());
 				});
 			},
 			and: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().boolean() && twoexpr.eval().boolean());
 				});
 			},
 			or: function(oneexpr, twoexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr, twoexpr);
+					
 					return toseq(oneexpr.eval().boolean() || twoexpr.eval().boolean());
 				});
 			},
 			not: function(oneexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr);
+					
 					return toseq(!oneexpr.eval().boolean());
 				});
 			},
 			boolean: function(oneexpr)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
+					self.adopt(oneexpr);
+					
 					return toseq(oneexpr.eval().boolean());
 				});
 			},
 			array: function(exprarray)
 			{
-				return new Expression(globalscope.slice(), function()
+				return new Expression(function(self)
 				{
 					return toseq(exprarray.map(function(expr)
 					{
+						self.adopt(expr);
+						
 						return expr.eval().value();
 					}));
 				});
 			},
+			predicate: function(expr, predicate)
+			{
+				return new Expression(function(self)
+				{
+					self.adopt(expr, predicate);
+					
+					var queried = expr.eval();
+					var number = predicate.eval().value();
+					if (typeof number === "number" && number % 1 === 0)
+						return toseq(queried.index(number)); //if predicate evaluates to an integer, return the item at index
+
+					var results = [];
+					var values = queried.value();
+					for(var i = 0; i < values.length; ++i)
+					{
+						predicate.scope['$$'] = toatomic(values[i]);
+						if (predicate.eval().boolean())
+							results.push(values[i]);
+					}
+					
+					return toseq(results);
+				});
+			},
+			context: function()
+			{
+				return new Expression(function(self)
+				{
+					if (!self.parent)
+						throw new Error('invalid use of context variable without parent');
+					
+					var expr = self.parent.lookup('$$');
+					if (expr === undefined)
+						return toseq(0);
+					
+					return expr.eval();
+				});
+			}
 		}
 	};
 	
