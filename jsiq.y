@@ -82,12 +82,12 @@ $[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
 %% /* Parser Grammar */
 
 jsoniq
-    : Expression EOF { $$ = $1; return $$; }
+    : Expression EOF { $$ = yy.expr.multi($1); return $$; }
     ;
 
 Expression
-    : Expression ',' ExprSingle { $$ = yy.seq($1, $3); }
-    | ExprSingle { $$ = yy.seq($1); }
+    : Expression ',' ExprSingle { $1.push($3); $$ = $1; }
+    | ExprSingle { $$ = [ $1 ]; }
     ;
 
 ExprSingle
@@ -103,14 +103,14 @@ ExprSingle
     | ObjectLookup
     | ArrayLookup
     | ArrayUnbox
-    | '(' Expression ')' { $$ = $2; }
-    | '(' ')' { $$ = yy.seq(); }
+    | '(' Expression ')' { $$ = yy.expr.multi($2); }
+    | '(' ')' { $$ = yy.expr.empty(); }
     ;
     
 Item
-    : Atomic { $$ = yy.seq($1); }
-    | Object { $$ = yy.seq($1); }
-    | Array { $$ = yy.seq($1); }
+    : Atomic { $$ = yy.expr.atomic($1); }
+    | Object { $$ = $1; }
+    | Array { $$ = $1; }
     ;
 
 Atomic
@@ -123,82 +123,82 @@ Atomic
     ;
 
 Array
-    : '[' ']' { $$ = []; }
-    | '[' ArrayItems ']' { $$ = $2; }
+    : '[' ']' { $$ = yy.expr.array([]); }
+    | '[' ArrayItems ']' { $$ = yy.expr.array($2); }
     ;
 
 ArrayItems
-    : ArrayItems ',' ExprSingle { $1.push($3.value()); $$ = $1; }
-    | ExprSingle { $$ = [ $1.value() ]; }
+    : ArrayItems ',' ExprSingle { $1.push($3); $$ = $1; }
+    | ExprSingle { $$ = [ $1 ]; }
     ;
 
 Object
-    : '{' '}' { $$ = {}; }
-    | '{' ObjectProperties '}'  { $$ = $2; }
+    : '{' '}' { $$ = yy.expr.object({}); }
+    | '{' ObjectProperties '}'  { $$ = yy.expr.object($2); }
     ;
 
 ObjectProperties
-    : ObjectProperties ',' PropertyPair { $$ = $1; $$[$3[0]] = $3[1]; }
-    | PropertyPair { $$ = {}; $$[$1[0]] = $1[1]; }
+    : ObjectProperties ',' PropertyPair { $1.push($3); $$ = $1; }
+    | PropertyPair { $$ = [ $1 ]; }
     ;
 
 PropertyPair
-	: ExprSingle ':' ExprSingle { $$ = [$1.value(), $3.value()]; }
-	| IDENT ':' ExprSingle { $$ = [$1, $3]; }
+	: ExprSingle ':' ExprSingle { $$ = [$1, $3]; }
+	| IDENT ':' ExprSingle { $$ = [yy.expr.atomic($1), $3]; }
 	;
 
 ObjectLookup
-	: ExprSingle '.' IDENT { $$ = $1.lookup($3); }
-	| ExprSingle '.' ExprSingle { $$ = $1.lookup($3.string()); }
+	: ExprSingle '.' IDENT { $$ = yy.expr.lookup($1, yy.expr.atomic($3)); }
+	| ExprSingle '.' ExprSingle { $$ = yy.expr.lookup($1, $3); }
 	;
 
 ArrayLookup
-	: ExprSingle '[' '[' ExprSingle ']' ']' { $$ = $1.index( $4.number() ); }
+	: ExprSingle '[' '[' ExprSingle ']' ']' { $$ = yy.expr.index($1, $4); }
 	;
 	
 ArrayUnbox
-	: ExprSingle '[' ']' { $$ = $1.unbox(); }
+	: ExprSingle '[' ']' { $$ = yy.expr.unbox($1); }
 	;
 
 UnaryExpression
-	: '+' ExprSingle %prec UNARY { $$ = +$2.number(); }
-	| '-' ExprSingle %prec UNARY { $$ = -$2.number(); }
+	: '+' ExprSingle %prec UNARY { $$ = yy.expr.unary_plus($2); }
+	| '-' ExprSingle %prec UNARY { $$ = yy.expr.unary_minus($2); }
 	;
 
 RangeExpression
-	: ExprSingle RANGE_OP ExprSingle { $$ = yy.range($1, $3); }
-	; 
+	: ExprSingle RANGE_OP ExprSingle { $$ = yy.expr.range($1, $3); }
+	;
 
 AdditiveExpression
-	: ExprSingle '+' ExprSingle { $$ = yy.seq($1.value() + $3.value()); }
-	| ExprSingle '-' ExprSingle { $$ = yy.seq($1.value() - $3.value()); }
+	: ExprSingle '+' ExprSingle { $$ = yy.expr.plus($1, $3); }
+	| ExprSingle '-' ExprSingle { $$ = yy.expr.minus($1, $3); }
 	; 
 
 MultiplicativeExpression
-	: ExprSingle MOD ExprSingle { $$ = yy.seq($1.value() % $3.value()); }
-	| ExprSingle '/' ExprSingle { $$ = yy.seq($1.value() / $3.value()); }
-	| ExprSingle '*' ExprSingle { $$ = yy.seq($1.value() * $3.value()); }
+	: ExprSingle MOD ExprSingle { $$ = yy.expr.mod($1, $3); }
+	| ExprSingle '/' ExprSingle { $$ = yy.expr.div($1, $3); }
+	| ExprSingle '*' ExprSingle { $$ = yy.expr.mul($1, $3); }
 	;
 
 StringConcatExpression
-	: ExprSingle STR_CAT ExprSingle { $$ = yy.seq($1.string() + $3.string()); }
+	: ExprSingle STR_CAT ExprSingle { $$ = yy.expr.concat($1, $3); }
 	;
 
 ComparisonExpression
-	: ExprSingle EQ ExprSingle { $$ = yy.seq($1.value() == $3.value()); }
-	| ExprSingle NE ExprSingle { $$ = yy.seq($1.value() != $3.value()); }
-	| ExprSingle LT ExprSingle { $$ = yy.seq($1.value() < $3.value()); }
-	| ExprSingle LE ExprSingle { $$ = yy.seq($1.value() <= $3.value()); }
-	| ExprSingle GT ExprSingle { $$ = yy.seq($1.value() > $3.value()); }
-	| ExprSingle GE ExprSingle { $$ = yy.seq($1.value() >= $3.value()); }
+	: ExprSingle EQ ExprSingle { $$ = yy.expr.eq($1, $3); }
+	| ExprSingle NE ExprSingle { $$ = yy.expr.ne($1, $3); }
+	| ExprSingle LT ExprSingle { $$ = yy.expr.lt($1, $3); }
+	| ExprSingle LE ExprSingle { $$ = yy.expr.le($1, $3); }
+	| ExprSingle GT ExprSingle { $$ = yy.expr.gt($1, $3); }
+	| ExprSingle GE ExprSingle { $$ = yy.expr.ge($1, $3); }
 	;
 
 LogicExpression
-	: ExprSingle OR ExprSingle { $$ = yy.seq(!!$1.value() || !!$3.value()); }
-	| ExprSingle AND ExprSingle { $$ = yy.seq(!!$1.value() && !!$3.value()); }
-	| NOT ExprSingle { $$ = yy.seq(!$2.value()); }
+	: ExprSingle OR ExprSingle { $$ = yy.expr.or($1, $3); }
+	| ExprSingle AND ExprSingle { $$ = yy.expr.and($1, $3); }
+	| NOT ExprSingle { $$ = yy.expr.not($2); }
 	;
 
 ConversionExpression
-	: BOOL_OP '(' ExprSingle ')' { $$ = yy.seq($3.boolean()); }
+	: BOOL_OP '(' ExprSingle ')' { $$ = yy.expr.boolean($3); }
 	;

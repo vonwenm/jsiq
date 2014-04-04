@@ -11,7 +11,7 @@ define(['lodash', 'parser'], function(_, parser)
 			}
 		}
 	}
-
+	
 	Object.defineProperties(Sequence.prototype, {
 		getitems: {
 		    value: function()
@@ -111,6 +111,12 @@ define(['lodash', 'parser'], function(_, parser)
 		}
 	});
 	
+	function Expression(scope, evl)
+	{
+		this.scope = scope.reverse();
+		this.eval = evl;
+	}
+	
 	function toseq(itm)
 	{
 		if  (itm instanceof Sequence)
@@ -119,33 +125,225 @@ define(['lodash', 'parser'], function(_, parser)
 		return new Sequence([itm]);
 	}
 	
+	var globalscope = [];
 	parser.yy = {
-		seq: function()
-		{
-			return _.reduce(arguments, function(seq, itm)
-			{
-				seq.push(itm);
-				return seq;
-			}, new Sequence());
-		},
-		range: function(min, max)
-		{
-			var mins = toseq(min);
-			var maxs = toseq(max);
-			if (mins.empty() || maxs.empty())
-				return new Sequence();
-			
-			var i = Math.min(mins.number(), maxs.number());
-			var lim = Math.max(mins.number(), maxs.number());
-			var result = new Sequence();
-			for(;i <= lim; ++i)
-				result.push(i);
-			
-			return result;
-		},
 		parseError : function(msg)
 		{
 			throw new Error(msg);
+		},
+		expr: {
+			atomic: function(itm)
+			{
+				var seq = toseq(itm);
+				return new Expression(globalscope.slice(), function()
+				{
+					return seq;
+				});
+			},
+		    multi: function(exprs)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return new Sequence(exprs.map(function(expr)
+		            {
+		                return expr.eval().value();
+		            }));
+		        });
+		    },
+		    empty: function()
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return new Sequence();
+		        });
+		    },
+		    object: function(propvalues)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            var obj = {};
+		            for(var i = 0; i < propvalues.length; ++i)
+		            {
+		                obj[ propvalues[i][0].eval().string() ] = propvalues[i][1].eval().value();
+		            }
+		        
+		            return toseq(obj);
+		        });
+		    },
+		    lookup: function(objexpr, nameexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return objexpr.eval().lookup(nameexpr.eval().string());
+		        });
+		    },
+		    index: function(arrexpr, idxexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return arrexpr.eval().index(idxexpr.eval().value());
+		        });
+		    },
+		    unbox: function(arrexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return arrexpr.eval().unbox();
+		        });
+		    },
+		    unary_plus: function(valexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(valexpr.eval().number());
+		        });
+		    },
+		    unary_minus: function(valexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(-valexpr.eval().number());
+		        });
+		    },
+		    range: function(minexpr, maxexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            var mins = minexpr.eval(), maxs = maxexpr.eval();
+        			if (mins.empty() || maxs.empty())
+				        return new Sequence();
+			
+			        var i = Math.min(mins.number(), maxs.number());
+			        var lim = Math.max(mins.number(), maxs.number());
+			        var result = new Sequence();
+			        for(;i <= lim; ++i)
+				        result.push(i);
+			
+			        return result;
+		        });
+		    },
+		    plus: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().number() + twoexpr.eval().number());
+		        });
+		    },
+		    minus: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().number() - twoexpr.eval().number());
+		        });
+		    },
+		    mod: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().number() % twoexpr.eval().number());
+		        });
+		    },
+		    div: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().number() / twoexpr.eval().number());
+		        });
+		    },
+		    mul: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().number() * twoexpr.eval().number());
+		        });
+		    },
+		    concat: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().string() + twoexpr.eval().string());
+		        });
+		    },
+		    eq: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() == twoexpr.eval().value());
+		        });
+		    },
+		    ne: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() != twoexpr.eval().value());
+		        });
+		    },
+		    lt: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() < twoexpr.eval().value());
+		        });
+		    },
+		    le: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() <= twoexpr.eval().value());
+		        });
+		    },
+		    gt: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() > twoexpr.eval().value());
+		        });
+		    },
+		    ge: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().value() >= twoexpr.eval().value());
+		        });
+		    },
+		    and: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().boolean() && twoexpr.eval().boolean());
+		        });
+		    },
+		    or: function(oneexpr, twoexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().boolean() || twoexpr.eval().boolean());
+		        });
+		    },
+		    not: function(oneexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(!oneexpr.eval().boolean());
+		        });
+		    },
+		    boolean: function(oneexpr)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(oneexpr.eval().boolean());
+		        });
+		    },
+		    array: function(exprarray)
+		    {
+		        return new Expression(globalscope.slice(), function()
+		        {
+		            return toseq(exprarray.map(function(expr)
+		            {
+		                return expr.eval().value();
+		            }));
+		        });
+		    },
 		}
 	};
 	

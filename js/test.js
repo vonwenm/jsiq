@@ -30,9 +30,9 @@ require.config({
 
 require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 {
-	function check(sequence, expected, msg)
+	function check(expr, expected, msg)
 	{
-		deepEqual(sequence.value(), expected, msg);
+		deepEqual(expr.eval().value(), expected, msg);
 	}
 	
 	test('basic', function()
