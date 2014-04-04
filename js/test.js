@@ -95,6 +95,10 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('([ 1, 2, 3 ], [ 4, 5, 6 ], { "foo" : "bar" }, true)[[3]]'), [3, 6], 'multi array mixed indexing');
 		
 		check(jsiq.parse('[ "foo", "bar" ] [[ 1 + 1 ]]'), "bar", 'multi array expression indexing');
+		
+		check(jsiq.parse('[ "foo", "bar" ][]'), ["foo", "bar"], 'array unboxing');
+		
+		check(jsiq.parse('([ "foo", "bar" ], { "foo" : "bar" }, true, [ 1, 2, 3 ] )[]'), ["foo", "bar", 1, 2, 3], 'multi mixed array unboxing');
 	});
 	
 	// start QUnit.

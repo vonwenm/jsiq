@@ -47,6 +47,13 @@ define(['lodash', 'parser'], function(_, parser)
 				return new Sequence(_.pluck(arrays, idx - 1).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
+		unbox: {
+		    value: function(idx)
+			{
+				var arrays = this.items.filter(function(itm) { return _.isArray(itm); });
+				return new Sequence(_.flatten(arrays));
+			}
+		},
 		value: {
 			value: function()
 			{

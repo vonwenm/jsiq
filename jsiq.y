@@ -102,6 +102,7 @@ ExprSingle
     | UnaryExpression
     | ObjectLookup
     | ArrayLookup
+    | ArrayUnbox
     | '(' Expression ')' { $$ = $2; }
     | '(' ')' { $$ = yy.seq(); }
     ;
@@ -153,6 +154,10 @@ ObjectLookup
 
 ArrayLookup
 	: ExprSingle '[' '[' ExprSingle ']' ']' { $$ = $1.index( $4.number() ); }
+	;
+	
+ArrayUnbox
+	: ExprSingle '[' ']' { $$ = $1.unbox(); }
 	;
 
 UnaryExpression
