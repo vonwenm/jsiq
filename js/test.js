@@ -49,11 +49,11 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('true, true'), [true, true], 'check multi value');
 		
-		check(jsiq.parse('1 * ( 2 + 3 ) + 7 / 2 + 8 mod 2'), 8.5, 'check mul add');
+		check(jsiq.parse('1 * ( 2 + 3 ) + 7 / 2 - (-8) mod 2'), 8.5, 'check mul add');
 		
-		check(jsiq.parse('1 + 1 eq 2, 1 lt 2'), [true, true], 'check comparison');
+		check(jsiq.parse('1 + 1 eq 2 or 1 + 1 eq 3, 1 + 1 eq 2, 1 lt 2'), [true, true, true], 'check comparison');
 		
-		check(jsiq.parse('"foo" ne null, null eq null'), [true, true], 'check comparison');
+		check(jsiq.parse('1 eq null, "foo" ne null, null eq null'), [false, true, true], 'check comparison');
 		
 		check(jsiq.parse('true and ( true or not true )'), true, 'check logic');
 		
@@ -64,6 +64,18 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('0 and true, not (not 1e42)'), [false, true], 'boolean conversion');
 		
 		check(jsiq.parse('{ "foo" : "bar" } or false'), true, 'object to boolean');
+		
+		check(jsiq.parse('{ "foo" : "bar" }.foo'), "bar", 'object lookup');
+		
+		check(jsiq.parse('({ "foo" : "bar" }, { "foo" : "bar2" }, { "bar" : "foo" }).foo'), ["bar", "bar2"], 'sequence object lookup');
+		
+		check(jsiq.parse('({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }, "foo").foo'), ["bar1", "bar2"], 'sequence mixed object lookup');
+		
+		check(jsiq.parse('{ "foo bar" : "bar" }."foo bar"'), "bar", 'quotes for object lookup');
+		
+		check(jsiq.parse('{ "foobar" : "bar" }.("foo" || "bar")'), "bar", 'object lookup with a nested expression');
+		
+		check(jsiq.parse('{ "1" : "bar" }.(1)'), "bar", 'object lookup with a nested expression');
 	});
 	
 	// start QUnit.

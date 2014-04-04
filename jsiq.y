@@ -55,6 +55,7 @@ ws    [\s]
 "/"                       return '/';
 "mod"                     return 'MOD';
 "to"                      return 'RANGE_OP';
+$[A-Za-z_$][A-Za-z_$0-9]+ return 'VAR_REF';
 [A-Za-z_$][A-Za-z_$0-9]+  return 'IDENT';
 <<EOF>>                   return 'EOF';
 
@@ -94,7 +95,9 @@ ExprSingle
     | ComparisonExpression
     | LogicExpression
     | ConversionExpression
-    | '(' ExprSingle ')' { $$ = $2; }
+    | UnaryExpression
+    | ObjectLookup
+    | '(' Expression ')' { $$ = $2; }
     | '(' ')' { $$ = yy.seq(); }
     ;
 
@@ -134,8 +137,18 @@ ObjectProperties
     ;
 
 PropertyPair
-	: STRING ':' ExprSingle { $$ = [$1, $3]; }
+	: ExprSingle ':' ExprSingle { $$ = [$1.value(), $3]; }
 	| IDENT ':' ExprSingle { $$ = [$1, $3]; }
+	;
+
+ObjectLookup
+	: ExprSingle '.' IDENT { $$ = $1.lookup($3); }
+	| ExprSingle '.' ExprSingle { $$ = $1.lookup($3.string()); }
+	;
+
+UnaryExpression
+	: '+' ExprSingle { $$ = +$2.value(); }
+	| '-' ExprSingle { $$ = -$2.value(); }
 	;
 
 RangeExpression

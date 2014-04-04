@@ -2,7 +2,14 @@ define(['lodash', 'parser'], function(_, parser)
 {
 	function Sequence(itms)
 	{
-		this.items = itms || [];
+		this.items = [];
+		if (itms)
+		{
+			for(var i = 0; i < itms.length; ++i)
+			{
+				this.push(itms[i]);
+			}
+		}
 	}
 
 	Object.defineProperties(Sequence.prototype, {
@@ -29,6 +36,12 @@ define(['lodash', 'parser'], function(_, parser)
 		    {
 		        return this.items[idx];
 		    }
+		},
+		lookup: {
+			value: function(itm)
+			{
+				return new Sequence(_.pluck(this.items, itm).filter(function(itm){ return itm !== undefined; }));
+			}
 		},
 		value: {
 			value: function()
