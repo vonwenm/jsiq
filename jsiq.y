@@ -273,6 +273,7 @@ FLOWRClauses
 FLOWRClause
 	: ForClause
 	| LetClause
+	| WhereClause
 	;
 
 ForClause
@@ -302,6 +303,10 @@ LetVars
 
 LetVar
 	: VAR_REF ':=' ExprSingle { $$ = yy.flowr.letclause($1, $3); }
+	;
+
+WhereClause
+	: WHERE ExprSingle { $$ = yy.flowr.whereclause($2); }
 	;
 
 ReturnClause

@@ -535,7 +535,7 @@ define(['lodash', 'parser'], function(_, parser)
 						clauses[i - 1].next = clauses[i];
 					}
 				
-					var sequences = _.flatten([clauses[0].eval()]);
+					var sequences = _.flatten([clauses[0].eval()]).filter(function(itm){ return itm !== undefined; });
 					var result = new Sequence();
 					for(var i = 0; i < sequences.length; ++i)
 						result.push(sequences[i]);
@@ -606,6 +606,17 @@ define(['lodash', 'parser'], function(_, parser)
 					retexpr.parent = self.parent;
 					
 					return retexpr.eval();
+				});		
+			},
+			whereclause: function(conditionexpr)
+			{
+				return new Expression(function(self)
+				{
+					conditionexpr.parent = self.parent;
+					if (conditionexpr.eval().boolean())
+						return self.next.eval();
+					else
+						return undefined;
 				});		
 			},
 		},

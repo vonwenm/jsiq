@@ -147,6 +147,8 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('for $x at $i in ("one", "two") return {"i": $i, "name": $x}'), [{i:1, name: "one"}, {i:2, name:"two"}], 'for position flowr');
 		
 		check(jsiq.parse('for $x in ("one", "two"), $y allowing empty in () return {"x": $x, "y": $y.name}'), [{x:"one", y:null}, {x:"two", y:null}], 'for empty flowr');
+		
+		check(jsiq.parse('for $x in (1, 2, 3, 4) where $x mod 2 eq 0 return $x'), [2, 4], 'where flowr');
 	});
 	
 	// start QUnit.
