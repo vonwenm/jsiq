@@ -42,6 +42,10 @@ ws    [\s]
 "if"                      return 'IF';
 "then"                    return 'THEN';
 "else"                    return 'ELSE';
+"switch"                  return 'SWITCH';
+"case"                    return 'CASE';
+"default"                 return 'DEFAULT';
+"return"                  return 'RETURN';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -82,6 +86,10 @@ $[A-Za-z_][A-Za-z_0-9]+   return 'VAR_REF';
 %nonassoc IF
 %nonassoc THEN
 %nonassoc ELSE
+%nonassoc SWITCH
+%nonassoc CASE
+%nonassoc RETURN
+%nonassoc DEFAULT
 %nonassoc '['
 
 %start jsoniq
@@ -113,6 +121,7 @@ ExprSingle
 	| SequencePredicate
 	| ContextItem
 	| IfExpression
+	| SwitchExpression
 	| '(' Expression ')' { $$ = yy.expr.multi($2); }
 	| '(' ')' { $$ = yy.expr.empty(); }
 	;
@@ -225,13 +234,18 @@ IfExpression
 	: IF '(' ExprSingle ')' THEN ExprSingle ELSE ExprSingle { $$ = yy.expr.ifclause($3, $6, $8); }
 	;
 
+SwitchExpression
+	: SWITCH '(' ExprSingle ')' SwitchCaseClauses DEFAULT RETURN ExprSingle { $$ = yy.expr.switchclause($3, $5, $8); }
+	;
 
+SwitchCaseClauses
+	: SwitchCaseClauses SwitchCaseClause { $1.push($2); $$ = $1; }
+	| SwitchCaseClause { $$ = [ $1 ]; }
+	;
 
-
-
-
-
-
+SwitchCaseClause
+	: CASE ExprSingle RETURN ExprSingle { $$ = [ $2, $4 ]; }
+	;
 
 
 

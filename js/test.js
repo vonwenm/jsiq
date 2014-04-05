@@ -121,6 +121,14 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('if (({ "foo" : "bar" }, [ 1, 2, 3, 4])) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition sequence');
 		
 		check(jsiq.parse('if (1+1 eq 2) then { "foo" : "yes" } else ()'), { "foo" : "yes" }, 'if condition no else');
+		
+		check(jsiq.parse('switch ("foo") case "bar" return "foo" case "foo" return "bar" default return "none"'), "bar", 'switch case');
+		
+		check(jsiq.parse('switch ("no-match") case "bar" return "foo" case "foo" return "bar" default return "none"'), "none", 'switch case default');
+		
+		check(jsiq.parse('switch (2) case 1 + 1 return "foo" case 2 + 2 return "bar" default return "none"'), "foo", 'switch case expression');
+		
+		check(jsiq.parse('switch (true) case 1 + 1 eq 2 return "1 + 1 is 2" case 2 + 2 eq 5 return "2 + 2 is 5" default return "none of the above is true"'), "1 + 1 is 2", 'switch case expression math');
 	});
 	
 	// start QUnit.

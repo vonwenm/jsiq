@@ -102,6 +102,25 @@ define(['lodash', 'parser'], function(_, parser)
 				
 				return num;
 			}
+		},
+		atomize: {
+			value: function()
+			{
+				var value = this.value();
+				var type = typeof value;
+				switch(type)
+				{
+					case "number":
+					case "string":
+					case "boolean":
+					case "undefined":
+						return value;
+				}
+				if (value === null)
+					return value;
+				else
+					throw new Error("can't atomize sequence of type " + type);
+			}
 		}
 	});
 	
@@ -141,7 +160,7 @@ define(['lodash', 'parser'], function(_, parser)
 					child.parent = self;
 				});
 			}
-		},
+		}
 	});
 	
 	function toseq(itm)
@@ -466,6 +485,21 @@ define(['lodash', 'parser'], function(_, parser)
 						return thenexpr.eval();
 					else
 						return elseexpr.eval();
+				});
+			},
+			switchclause: function(conditionexpr, caseexprs, defaultexpr)
+			{
+				return new Expression(function(self)
+				{
+					self.adopt(conditionexpr, caseexprs, defaultexpr);
+					var cond = conditionexpr.eval().atomize();
+					for(var i = 0; i < caseexprs.length; ++i)
+					{
+						if (caseexprs[i][0].eval().atomize() === cond)
+							return caseexprs[i][1].eval();
+					}
+					
+					return defaultexpr.eval();
 				});
 			}
 		}
