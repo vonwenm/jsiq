@@ -132,22 +132,51 @@ define(['lodash', 'parser'], function(_, parser)
 	
 	function Expression(evl)
 	{
-		this.parent = null;
-		this.scope = {};
+		this.scope = new Scope();
 		
 		var self = this;
 		this.eval = function()
 		{
-			var args = Array.prototype.concat.apply([self], arguments);
+			var args = Array.prototype.slice.call(arguments);
+			args.unshift(self);
 			return evl.apply(self, args);
 		};
 	}
 	
 	Object.defineProperties(Expression.prototype, {
+		adopt: {
+			value: function()
+			{
+				var children = Array.prototype.slice.call(arguments);
+				var self = this;
+				children.forEach(function(child)
+				{
+					child.scope = self.scope.descendant();
+				});
+			}
+		}
+	});
+	
+	function Scope()
+	{
+		this.parent = null;
+		this.local = {};
+	}
+	
+	Object.defineProperties(Scope.prototype, {
+		set: {
+			value: function(name, value)
+			{
+				if (value instanceof Expression)
+					this.local[name] = value;
+				else
+					throw new Error('scope value should be an Expression');
+			}
+		},
 		lookup: {
 			value: function(name)
 			{
-				var val = this.scope[name];
+				var val = this.local[name];
 				if (val !== undefined)
 					return val;
 				
@@ -157,15 +186,21 @@ define(['lodash', 'parser'], function(_, parser)
 				return undefined;
 			}
 		},
-		adopt: {
+		childof: {
+			value: function(parentexpr)
+			{
+				if (!parentexpr)
+					return;
+				
+				this.parent = parentexpr.scope;
+			}
+		},
+		descendant: {
 			value: function()
 			{
-				var children = Array.prototype.slice.call(arguments);
-				var self = this;
-				children.forEach(function(child)
-				{
-					child.parent = self;
-				});
+				var child = new Scope();
+				child.parent = this;
+				return child;
 			}
 		}
 	});
@@ -460,7 +495,7 @@ define(['lodash', 'parser'], function(_, parser)
 					var values = queried.value();
 					for(var i = 0; i < values.length; ++i)
 					{
-						predicate.scope['$$'] = atomicexpr(values[i]);
+						predicate.scope.set('$$', atomicexpr(values[i]));
 						if (predicate.eval().boolean())
 							results.push(values[i]);
 					}
@@ -472,10 +507,7 @@ define(['lodash', 'parser'], function(_, parser)
 			{
 				return new Expression(function(self)
 				{
-					if (!self.parent)
-						throw new Error('invalid use of context variable without parent');
-					
-					var expr = self.parent.lookup('$$');
+					var expr = self.scope.lookup('$$');
 					if (expr === undefined)
 						return toseq(0);
 					
@@ -486,10 +518,7 @@ define(['lodash', 'parser'], function(_, parser)
 			{
 				return new Expression(function(self)
 				{
-					if (!self.parent)
-						throw new Error('invalid use of variable ref without parent');
-					
-					var expr = self.parent.lookup(name);
+					var expr = self.scope.lookup(name);
 					if (expr === undefined)
 						return toseq(0);
 					
@@ -529,16 +558,15 @@ define(['lodash', 'parser'], function(_, parser)
 				
 				return new Expression(function(self)
 				{
-					for(var i = 1; i < clauses.length; ++i)
+					var res = [];
+					for(var i = 0; i < clauses.length; ++i)
 					{
-						clauses[i - 1].adopt(clauses[i]);
-						clauses[i - 1].next = clauses[i];
+						res = clauses[i].eval(res, i === 0);
 					}
 				
-					var sequences = _.flatten([clauses[0].eval()]).filter(function(itm){ return itm !== undefined; });
 					var result = new Sequence();
-					for(var i = 0; i < sequences.length; ++i)
-						result.push(sequences[i]);
+					for(var i = 0; i < res.length; ++i)
+						result.push(res[i]);
 				
 					return result;
 				});
@@ -548,75 +576,97 @@ define(['lodash', 'parser'], function(_, parser)
 		flowr: {
 			letclause: function(varref, valueexpr)
 			{
-				return new Expression(function(self)
+				return new Expression(function(self, incoming, first)
 				{
-					valueexpr.parent = self.parent;
-					this.scope[varref] = new Expression(function()
-					{
-						return valueexpr.eval();
-					});
+					if (first)
+						incoming.push(new Scope());
 					
-					return self.next.eval();
+					return incoming.map(function(itm)
+					{
+						var child = itm.descendant();
+						child.set(varref, new Expression(function()
+						{
+							valueexpr.scope = child;
+							return valueexpr.eval();
+						}));
+						return child;
+					});
 				});
 			},
 			forclause: function(varref, allowempty, atref, inexpr)
 			{
-				return new Expression(function(self)
+				function init_scope(scope, idx, value)
 				{
-					inexpr.parent = self.parent;
+					scope.set(varref, new Expression(function()
+						{
+							return toseq(value);
+						}));
+				
+					if (atref)
+					{
+						scope.set(atref, new Expression(function()
+							{
+								return toseq(idx);
+							}));
+					}
+				}
+				
+				return new Expression(function(self, incoming, first)
+				{
+					if (first)
+						incoming.push(new Scope());
 					
 					var results = [];
-					var values = inexpr.eval().items;
-					for(var i = 0; i < values.length; ++i)
+					for(var i = 0; i < incoming.length; ++i)
 					{
-						var itr = i;
-						this.scope[varref] = new Expression(function()
-							{
-								return toseq(values[itr]);
-							});
-						
-						if (atref)
+						inexpr.scope = incoming[i];
+						var values = inexpr.eval().items;
+						for(var k = 0; k < values.length; ++k)
 						{
-							this.scope[atref] = new Expression(function()
-								{
-									return toseq(itr + 1);
-								});
+							var creation = incoming[i].descendant();
+							
+							init_scope(creation, k + 1, values[k]);
+							
+							results.push(creation);
 						}
-
-						results.push(self.next.eval());
 					}
 					
 					if (allowempty && values.length === 0)
 					{
-						this.scope[varref] = new Expression(function()
-							{
-								return toseq(null);
-							});
-						
-						results.push(self.next.eval());
+						for(var i = 0; i < incoming.length; ++i)
+						{
+							var creation = incoming[i].descendant();
+
+							init_scope(creation, 0, null);
+
+							results.push(creation);
+						}
 					}
 					
 					return results;
 				});		
 			},
-			returnclause: function(retexpr)
-			{
-				return new Expression(function(self)
-				{
-					retexpr.parent = self.parent;
-					
-					return retexpr.eval();
-				});		
-			},
 			whereclause: function(conditionexpr)
 			{
-				return new Expression(function(self)
+				return new Expression(function(self, incoming)
 				{
-					conditionexpr.parent = self.parent;
-					if (conditionexpr.eval().boolean())
-						return self.next.eval();
-					else
-						return undefined;
+					return incoming.filter(function(scope)
+					{
+						conditionexpr.scope = scope;
+						
+						return conditionexpr.eval().boolean();
+					});
+				});		
+			},
+			returnclause: function(retexpr)
+			{
+				return new Expression(function(self, incoming)
+				{
+					return incoming.map(function(scope)
+					{
+						retexpr.scope = scope;
+						return retexpr.eval();
+					});
 				});		
 			},
 		},
