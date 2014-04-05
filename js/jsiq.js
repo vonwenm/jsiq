@@ -29,9 +29,15 @@ define(['lodash', 'parser'], function(_, parser)
 			}
 		},
 		lookup: {
-			value: function(itm)
+			value: function(key)
 			{
-				return new Sequence(_.pluck(this.items, itm).filter(function(itm){ return itm !== undefined; }));
+				return new Sequence(this.items.map(function(itm)
+				{
+					if (itm === null)
+						return null;
+					
+					return itm[key];
+				}).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
 		index: {
@@ -132,7 +138,8 @@ define(['lodash', 'parser'], function(_, parser)
 		var self = this;
 		this.eval = function()
 		{
-			return evl(self);
+			var args = Array.prototype.concat.apply([self], arguments);
+			return evl.apply(self, args);
 		};
 	}
 	
@@ -171,7 +178,7 @@ define(['lodash', 'parser'], function(_, parser)
 		return new Sequence([itm]);
 	}
 	
-	function toatomic(itm)
+	function atomicexpr(itm)
 	{
 		var seq = toseq(itm);
 		return new Expression(function(self)
@@ -189,7 +196,7 @@ define(['lodash', 'parser'], function(_, parser)
 		expr: {
 			atomic: function(itm)
 			{
-				return toatomic(itm);
+				return atomicexpr(itm);
 			},
 			multi: function(exprs)
 			{
@@ -453,7 +460,7 @@ define(['lodash', 'parser'], function(_, parser)
 					var values = queried.value();
 					for(var i = 0; i < values.length; ++i)
 					{
-						predicate.scope['$$'] = toatomic(values[i]);
+						predicate.scope['$$'] = atomicexpr(values[i]);
 						if (predicate.eval().boolean())
 							results.push(values[i]);
 					}
@@ -469,6 +476,20 @@ define(['lodash', 'parser'], function(_, parser)
 						throw new Error('invalid use of context variable without parent');
 					
 					var expr = self.parent.lookup('$$');
+					if (expr === undefined)
+						return toseq(0);
+					
+					return expr.eval();
+				});
+			},
+			varref: function(name)
+			{
+				return new Expression(function(self)
+				{
+					if (!self.parent)
+						throw new Error('invalid use of variable ref without parent');
+					
+					var expr = self.parent.lookup(name);
 					if (expr === undefined)
 						return toseq(0);
 					
@@ -501,8 +522,93 @@ define(['lodash', 'parser'], function(_, parser)
 					
 					return defaultexpr.eval();
 				});
-			}
-		}
+			},
+			flowr: function()
+			{
+				var clauses = _.flatten(Array.prototype.slice.call(arguments));
+				
+				return new Expression(function(self)
+				{
+					for(var i = 1; i < clauses.length; ++i)
+					{
+						clauses[i - 1].adopt(clauses[i]);
+						clauses[i - 1].next = clauses[i];
+					}
+				
+					var sequences = _.flatten([clauses[0].eval()]);
+					var result = new Sequence();
+					for(var i = 0; i < sequences.length; ++i)
+						result.push(sequences[i]);
+				
+					return result;
+				});
+			},
+		},
+		//flowr clauses are expressions that return an array of context variables, or undefined to just pass
+		flowr: {
+			letclause: function(varref, valueexpr)
+			{
+				return new Expression(function(self)
+				{
+					valueexpr.parent = self.parent;
+					this.scope[varref] = new Expression(function()
+					{
+						return valueexpr.eval();
+					});
+					
+					return self.next.eval();
+				});
+			},
+			forclause: function(varref, allowempty, atref, inexpr)
+			{
+				return new Expression(function(self)
+				{
+					inexpr.parent = self.parent;
+					
+					var results = [];
+					var values = inexpr.eval().items;
+					for(var i = 0; i < values.length; ++i)
+					{
+						var itr = i;
+						this.scope[varref] = new Expression(function()
+							{
+								return toseq(values[itr]);
+							});
+						
+						if (atref)
+						{
+							this.scope[atref] = new Expression(function()
+								{
+									return toseq(itr + 1);
+								});
+						}
+
+						results.push(self.next.eval());
+					}
+					
+					if (allowempty && values.length === 0)
+					{
+						this.scope[varref] = new Expression(function()
+							{
+								return toseq(null);
+							});
+						
+						results.push(self.next.eval());
+					}
+					
+					return results;
+				});		
+			},
+			returnclause: function(retexpr)
+			{
+				return new Expression(function(self)
+				{
+					retexpr.parent = self.parent;
+					
+					return retexpr.eval();
+				});		
+			},
+		},
 	};
 	
 	return {

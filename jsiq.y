@@ -46,6 +46,14 @@ ws    [\s]
 "case"                    return 'CASE';
 "default"                 return 'DEFAULT';
 "return"                  return 'RETURN';
+"for"                     return 'FOR';
+"as"                      return 'AS';
+"allowing"                return 'ALLOWING';
+"empty"                   return 'EMPTY';
+"at"                      return 'AT';
+"in"                      return 'IN';
+"where"                   return 'WHERE';
+"let"                     return 'LET';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -53,6 +61,7 @@ ws    [\s]
 "{"                       return '{';
 "}"                       return '}';
 "?"                       return '?';
+":="                      return ':=';
 ":"                       return ':';
 "."                       return '.';
 ","                       return ',';
@@ -64,13 +73,17 @@ ws    [\s]
 "mod"                     return 'MOD';
 "to"                      return 'RANGE_OP';
 "$$"                      return 'VAR_CONTEXT';
-$[A-Za-z_][A-Za-z_0-9]+   return 'VAR_REF';
-[A-Za-z_][A-Za-z_0-9]+    return 'IDENT';
+\$[A-Za-z_][A-Za-z_0-9]*   return 'VAR_REF';
+[A-Za-z_][A-Za-z_0-9]*    return 'IDENT';
 <<EOF>>                   return 'EOF';
 
 /lex
 
 /* Operator Associativity and Precedence */
+
+%nonassoc IF
+%nonassoc RETURN
+%nonassoc '['
 
 %left '?'
 %left RANGE_OP
@@ -83,14 +96,6 @@ $[A-Za-z_][A-Za-z_0-9]+   return 'VAR_REF';
 %left '.'
 %left UNARY
 
-%nonassoc IF
-%nonassoc THEN
-%nonassoc ELSE
-%nonassoc SWITCH
-%nonassoc CASE
-%nonassoc RETURN
-%nonassoc DEFAULT
-%nonassoc '['
 
 %start jsoniq
 
@@ -120,8 +125,10 @@ ExprSingle
 	| ArrayUnbox
 	| SequencePredicate
 	| ContextItem
+	| VarRef
 	| IfExpression
 	| SwitchExpression
+	| FLOWRExpression
 	| '(' Expression ')' { $$ = yy.expr.multi($2); }
 	| '(' ')' { $$ = yy.expr.empty(); }
 	;
@@ -187,6 +194,10 @@ ContextItem
 	: VAR_CONTEXT { $$ = yy.expr.context(); }
 	;
 
+VarRef
+	: VAR_REF { $$ = yy.expr.varref(yytext); }
+	;
+
 UnaryExpression
 	: '+' ExprSingle %prec UNARY { $$ = yy.expr.unary_plus($2); }
 	| '-' ExprSingle %prec UNARY { $$ = yy.expr.unary_minus($2); }
@@ -245,6 +256,56 @@ SwitchCaseClauses
 
 SwitchCaseClause
 	: CASE ExprSingle RETURN ExprSingle { $$ = [ $2, $4 ]; }
+	;
+
+FLOWRExpression
+	: ForClause FLOWRClauses ReturnClause { $$ = yy.expr.flowr($1, $2, $3); }
+	| LetClause FLOWRClauses ReturnClause { $$ = yy.expr.flowr($1, $2, $3); }
+	| ForClause ReturnClause { $$ = yy.expr.flowr($1, $2); }
+	| LetClause ReturnClause { $$ = yy.expr.flowr($1, $2); }
+	;
+
+FLOWRClauses
+	: FLOWRClauses FLOWRClause { $1.push($2); $$ = $1; }
+	| FLOWRClause { $$ = [ $1 ]; }
+	;
+
+FLOWRClause
+	: ForClause
+	| LetClause
+	;
+
+ForClause
+	: FOR ForClauseVars { $$ = $2; }
+	;
+
+ForClauseVars
+	: ForClauseVars ',' ForClauseVar { $1.push($3); $$ = $1; }
+	| ForClauseVar { $$ = [ $1 ]; }
+	;
+
+ForClauseVar
+	: VAR_REF ALLOWING EMPTY AT VAR_REF IN ExprSingle { $$ = yy.flowr.forclause($1, true, $5, $7); }
+	| VAR_REF ALLOWING EMPTY IN ExprSingle { $$ = yy.flowr.forclause($1, true, null, $5); }
+	| VAR_REF AT VAR_REF IN ExprSingle { $$ = yy.flowr.forclause($1, false, $3, $5); }
+	| VAR_REF IN ExprSingle { $$ = yy.flowr.forclause($1, false, null, $3); }
+	;
+
+LetClause
+	: LET LetVars { $$ = $2; }
+	;
+
+LetVars
+	: LetVars, LetVar { $1.push($2); $$ = $1; }
+	| LetVar { $$ = [ $1 ]; }
+	;
+
+LetVar
+	: VAR_REF ':=' ExprSingle { $$ = yy.flowr.letclause($1, $3); }
+	;
+
+ReturnClause
+	: RETURN ExprSingle { $$ = yy.flowr.returnclause($2); }
 	;
 
 

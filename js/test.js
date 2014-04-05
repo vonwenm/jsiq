@@ -77,6 +77,8 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('{ "1" : "bar" }.(1)'), "bar", 'object lookup with a nested expression');
 		
+		check(jsiq.parse('let $field := "foo" || "bar" return { "foobar" : "bar" }.$field'), "bar", 'object lookup with variable reference');
+		
 		check(jsiq.parse('[]'), [], 'array');
 		
 		check(jsiq.parse('[ 1, 2, 3, 4, 5, 6 ]'), [ 1, 2, 3, 4, 5, 6 ], 'array construction');
@@ -129,6 +131,22 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('switch (2) case 1 + 1 return "foo" case 2 + 2 return "bar" default return "none"'), "foo", 'switch case expression');
 		
 		check(jsiq.parse('switch (true) case 1 + 1 eq 2 return "1 + 1 is 2" case 2 + 2 eq 5 return "2 + 2 is 5" default return "none of the above is true"'), "1 + 1 is 2", 'switch case expression math');
+		
+		check(jsiq.parse('let $x := 1 return $x'), 1, 'let flowr');
+		
+		check(jsiq.parse('for $x in (1, 2, 3) return $x'), [1, 2, 3], 'for flowr');
+		
+		check(jsiq.parse('for $x in (1, 2, 3) for $y in ( 1, 2, 3 ) return 10 * $x + $y'), [11, 12, 13, 21, 22, 23, 31, 32, 33], 'for for flowr');
+		
+		check(jsiq.parse('for $x in (1, 2, 3), $y in ( 1, 2, 3 ) return 10 * $x + $y'), [11, 12, 13, 21, 22, 23, 31, 32, 33], 'double for flowr');
+		
+		check(jsiq.parse('for $x in ( [ 1, 2, 3 ], [ 4, 5, 6 ], [ 7, 8, 9 ] ), $y in $x[] return $y'), [1, 2, 3, 4, 5, 6, 7, 8, 9], 'dependent for flowr');
+		
+		check(jsiq.parse('for $x in ({"name":["john", "doe"]}, {"name":["bob", "mcgee"]}), $y in $x.name[] return $y'), ["john", "doe", "bob", "mcgee"], 'dependent for object lookup flowr');
+		
+		check(jsiq.parse('for $x at $i in ("one", "two") return {"i": $i, "name": $x}'), [{i:1, name: "one"}, {i:2, name:"two"}], 'for position flowr');
+		
+		check(jsiq.parse('for $x in ("one", "two"), $y allowing empty in () return {"x": $x, "y": $y.name}'), [{x:"one", y:null}, {x:"two", y:null}], 'for empty flowr');
 	});
 	
 	// start QUnit.
