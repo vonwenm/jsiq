@@ -103,6 +103,24 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('(1 to 10)[2]'), 2, 'sequence predicate indexing');
 		
 		check(jsiq.parse('(1 to 10)[$$ mod 2 eq 0]'), [2, 4, 6, 8, 10], 'sequence predicate context indexing');
+		
+		check(jsiq.parse('if (1 + 1 eq 2) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition boolexpr');
+		
+		check(jsiq.parse('if (null) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition null');
+		
+		check(jsiq.parse('if (1) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition 1');
+		
+		check(jsiq.parse('if (0) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition 0');
+		
+		check(jsiq.parse('if ("foo") then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition string');
+		
+		check(jsiq.parse('if ("") then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition empty string');
+		
+		check(jsiq.parse('if (()) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition empty sequence');
+		
+		check(jsiq.parse('if (({ "foo" : "bar" }, [ 1, 2, 3, 4])) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition sequence');
+		
+		check(jsiq.parse('if (1+1 eq 2) then { "foo" : "yes" } else ()'), { "foo" : "yes" }, 'if condition no else');
 	});
 	
 	// start QUnit.

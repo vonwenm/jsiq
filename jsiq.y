@@ -39,6 +39,9 @@ ws    [\s]
 "not"					  return 'NOT';
 "||"                      return 'STR_CAT';
 "boolean"				  return 'BOOL_OP';
+"if"                      return 'IF';
+"then"                    return 'THEN';
+"else"                    return 'ELSE';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -76,6 +79,9 @@ $[A-Za-z_][A-Za-z_0-9]+   return 'VAR_REF';
 %left '.'
 %left UNARY
 
+%nonassoc IF
+%nonassoc THEN
+%nonassoc ELSE
 %nonassoc '['
 
 %start jsoniq
@@ -106,6 +112,7 @@ ExprSingle
 	| ArrayUnbox
 	| SequencePredicate
 	| ContextItem
+	| IfExpression
 	| '(' Expression ')' { $$ = yy.expr.multi($2); }
 	| '(' ')' { $$ = yy.expr.empty(); }
 	;
@@ -213,3 +220,18 @@ LogicExpression
 ConversionExpression
 	: BOOL_OP '(' ExprSingle ')' { $$ = yy.expr.boolean($3); }
 	;
+
+IfExpression
+	: IF '(' ExprSingle ')' THEN ExprSingle ELSE ExprSingle { $$ = yy.expr.ifclause($3, $6, $8); }
+	;
+
+
+
+
+
+
+
+
+
+
+

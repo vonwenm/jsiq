@@ -455,6 +455,18 @@ define(['lodash', 'parser'], function(_, parser)
 					
 					return expr.eval();
 				});
+			},
+			ifclause: function(conditionexpr, thenexpr, elseexpr)
+			{
+				return new Expression(function(self)
+				{
+					self.adopt(conditionexpr, thenexpr, elseexpr);
+					
+					if (conditionexpr.eval().boolean())
+						return thenexpr.eval();
+					else
+						return elseexpr.eval();
+				});
 			}
 		}
 	};
