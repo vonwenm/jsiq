@@ -36,7 +36,7 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 	}
 	
 	test('basic', function()
-	{
+	{		
 		check(jsiq.parse("true"), true, 'check bool');
 		
 		check(jsiq.parse('"hello world"'), "hello world", 'check string');
@@ -183,6 +183,182 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 			{value: 1, count: 2}, 'group by with constraint');
 		
 		check(jsiq.parse('(1 to 5) ! ($$ * 2)'), [2, 4, 6, 8, 10], 'simple map');
+		
+		
+		var oneobj = [{foo: 'bar'}];
+		jsiq.collection('one-object', oneobj);
+		
+		var captains = [
+			{ "name" : "James T. Kirk", "series" : [ "The original series" ], "century" : 23 },
+			{ "name" : "Jean-Luc Picard", "series" : [ "The next generation" ], "century" : 24 },
+			{ "name" : "Benjamin Sisko", "series" : [ "The next generation", "Deep Space 9" ], "century" : 24 },
+			{ "name" : "Kathryn Janeway", "series" : [ "The next generation", "Voyager" ], "century" : 24  },
+			{ "name" : "Jonathan Archer", "series" : [ "Entreprise" ], "century" : 22 },
+			{ "codename" : "Emergency Command Hologram", "surname" : "The Doctor", "series" : [ "Voyager" ], "century" : 24 },
+			{ "name" : "Samantha Carter", "series" : [ ], "century" : 21 },
+		];
+		jsiq.collection('captains', captains);
+		
+		var movies = [
+			{ "id" : "I", "name" : "The Motion Picture", "captain" : "James T. Kirk" },
+			{ "id" : "II", "name" : "The Wrath of Kahn", "captain" : "James T. Kirk" },
+			{ "id" : "III", "name" : "The Search for Spock", "captain" : "James T. Kirk" },
+			{ "id" : "IV", "name" : "The Voyage Home", "captain" : "James T. Kirk" },
+			{ "id" : "V", "name" : "The Final Frontier", "captain" : "James T. Kirk" },
+			{ "id" : "VI", "name" : "The Undiscovered Country", "captain" : "James T. Kirk" },
+			{ "id" : "VII", "name" : "Generations", "captain" : [ "James T. Kirk", "Jean-Luc Picard" ] },
+			{ "id" : "VIII", "name" : "First Contact", "captain" : "Jean-Luc Picard" },
+			{ "id" : "IX", "name" : "Insurrection", "captain" : "Jean-Luc Picard" },
+			{ "id" : "X", "name" : "Nemesis", "captain" : "Jean-Luc Picard" },
+			{ "id" : "XI", "name" : "Star Trek", "captain" : "Spock" },
+			{ "id" : "XII", "name" : "Star Trek Into Darkness", "captain" : "Spock" },
+		];
+		jsiq.collection('movies', movies);
+		
+		check(jsiq.parse('collection("one-object")'), oneobj[0], 'one object collection');
+		
+		check(jsiq.parse('collection("one-object").foo'), 'bar', 'one object lookup');
+		
+		check(jsiq.parse('collection("captains").name'),
+			["James T. Kirk", "Jean-Luc Picard", "Benjamin Sisko", "Kathryn Janeway", "Jonathan Archer", "Samantha Carter"], 'object lookup with iteration');
+
+		check(jsiq.parse('collection("captains").series[#1#]'),
+			["The original series", "The next generation", "The next generation", "The next generation", "Entreprise", "Voyager"], 'array lookup with iteration');
+		
+		check(jsiq.parse('for $x in collection("captains") return $x.name'),
+			["James T. Kirk", "Jean-Luc Picard", "Benjamin Sisko", "Kathryn Janeway", "Jonathan Archer", "Samantha Carter"], 'simple for with collection');
+		
+		check(jsiq.parse('for $x in collection("captains"), $y in $x.series[] return { "captain" : $x.name, "series" : $y }'),
+			[
+				{ "captain" : "James T. Kirk", "series" : "The original series" },
+				{ "captain" : "Jean-Luc Picard", "series" : "The next generation" },
+				{ "captain" : "Benjamin Sisko", "series" : "The next generation" },
+				{ "captain" : "Benjamin Sisko", "series" : "Deep Space 9" },
+				{ "captain" : "Kathryn Janeway", "series" : "The next generation" },
+				{ "captain" : "Kathryn Janeway", "series" : "Voyager" },
+				{ "captain" : "Jonathan Archer", "series" : "Entreprise" },
+				{ "captain" : null, "series" : "Voyager" }
+			], 'for with two clauses and collection');
+		
+		check(jsiq.parse('for $x at $position in collection("captains") return { "captain" : $x.name, "id" : $position }'),
+			[
+				{ "captain" : "James T. Kirk", "id" : 1 },
+				{ "captain" : "Jean-Luc Picard", "id" : 2 },
+				{ "captain" : "Benjamin Sisko", "id" : 3 },
+				{ "captain" : "Kathryn Janeway", "id" : 4 },
+				{ "captain" : "Jonathan Archer", "id" : 5 },
+				{ "captain" : null, "id" : 6 },
+				{ "captain" : "Samantha Carter", "id" : 7 }
+			], 'for with position and collection');
+		
+		check(jsiq.parse('for $captain in collection("captains"), $movie in collection("movies")[ $$.captain eq $captain.name ] return { "captain" : $captain.name, "movie" : $movie.name }'),
+			[
+				{ "captain" : "James T. Kirk", "movie" : "The Motion Picture" },
+				{ "captain" : "James T. Kirk", "movie" : "The Wrath of Kahn" },
+				{ "captain" : "James T. Kirk", "movie" : "The Search for Spock" },
+				{ "captain" : "James T. Kirk", "movie" : "The Voyage Home" },
+				{ "captain" : "James T. Kirk", "movie" : "The Final Frontier" },
+				{ "captain" : "James T. Kirk", "movie" : "The Undiscovered Country" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "First Contact" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Insurrection" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Nemesis" }
+			], 'join with collection');
+		
+		check(jsiq.parse('for $captain in collection("captains"), $movie allowing empty in collection("movies")[ $$.captain eq $captain.name ] return { "captain" : $captain.name, "movie" : $movie.name }'),
+			[
+				{ "captain" : "James T. Kirk", "movie" : "The Motion Picture" },
+				{ "captain" : "James T. Kirk", "movie" : "The Wrath of Kahn" },
+				{ "captain" : "James T. Kirk", "movie" : "The Search for Spock" },
+				{ "captain" : "James T. Kirk", "movie" : "The Voyage Home" },
+				{ "captain" : "James T. Kirk", "movie" : "The Final Frontier" },
+				{ "captain" : "James T. Kirk", "movie" : "The Undiscovered Country" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "First Contact" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Insurrection" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Nemesis" },
+				{ "captain" : "Benjamin Sisko", "movie" : null },
+				{ "captain" : "Kathryn Janeway", "movie" : null },
+				{ "captain" : "Jonathan Archer", "movie" : null },
+				{ "captain" : null, "movie" : null },
+				{ "captain" : "Samantha Carter", "movie" : null }
+			], 'join with collection allowing empty');
+		
+		check(jsiq.parse('for $captain in collection("captains"), $movie in collection("movies") where $movie.captain eq $captain.name return { "captain" : $captain.name, "movie" : $movie.name }'),
+			[
+				{ "captain" : "James T. Kirk", "movie" : "The Motion Picture" },
+				{ "captain" : "James T. Kirk", "movie" : "The Wrath of Kahn" },
+				{ "captain" : "James T. Kirk", "movie" : "The Search for Spock" },
+				{ "captain" : "James T. Kirk", "movie" : "The Voyage Home" },
+				{ "captain" : "James T. Kirk", "movie" : "The Final Frontier" },
+				{ "captain" : "James T. Kirk", "movie" : "The Undiscovered Country" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "First Contact" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Insurrection" },
+				{ "captain" : "Jean-Luc Picard", "movie" : "Nemesis" }
+			], 'where join with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") where $x.name eq "Kathryn Janeway" return $x.series'),
+			[ "The next generation", "Voyager" ], 'where with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") order by $x.name return $x'),
+			[
+				//there's an error in the standard example, The doctor is ordered by a null value, which is by default smaller
+				//than anything else, the example puts it at the end. This would require an "empty greatest" clause.
+				{ "codename" : "Emergency Command Hologram", "surname" : "The Doctor", "series" : [ "Voyager" ], "century" : 24 },
+				{ "name" : "Benjamin Sisko", "series" : [ "The next generation", "Deep Space 9" ], "century" : 24 },
+				{ "name" : "James T. Kirk", "series" : [ "The original series" ], "century" : 23 },
+				{ "name" : "Jean-Luc Picard", "series" : [ "The next generation" ], "century" : 24 },
+				{ "name" : "Jonathan Archer", "series" : [ "Entreprise" ], "century" : 22 },
+				{ "name" : "Kathryn Janeway", "series" : [ "The next generation", "Voyager" ], "century" : 24 },
+				{ "name" : "Samantha Carter", "series" : [ ], "century" : 21 }
+			], 'order by with collection');
+
+		check(jsiq.parse('for $x in collection("captains") order by $x.series.length, $x.name return $x'),
+			[
+				//there's an error in the standard example, The doctor is ordered by a null value, which is by default smaller
+				//than anything else, the example puts it at the end. This would require an "empty greatest" clause.
+				{ "name" : "Samantha Carter", "series" : [ ], "century" : 21 },
+				{ "codename" : "Emergency Command Hologram", "surname" : "The Doctor", "series" : [ "Voyager" ], "century" : 24 },
+				{ "name" : "James T. Kirk", "series" : [ "The original series" ], "century" : 23 },
+				{ "name" : "Jean-Luc Picard", "series" : [ "The next generation" ], "century" : 24 },
+				{ "name" : "Jonathan Archer", "series" : [ "Entreprise" ], "century" : 22 },
+				{ "name" : "Benjamin Sisko", "series" : [ "The next generation", "Deep Space 9" ], "century" : 24 },
+				{ "name" : "Kathryn Janeway", "series" : [ "The next generation", "Voyager" ], "century" : 24 }
+			], 'order by multiple with collection');
+
+		check(jsiq.parse('for $x in collection("captains") order by $x.name descending empty greatest return $x'),
+			[
+				{ "codename" : "Emergency Command Hologram", "surname" : "The Doctor", "series" : [ "Voyager" ], "century" : 24 },
+				{ "name" : "Samantha Carter", "series" : [ ], "century" : 21 },
+				{ "name" : "Kathryn Janeway", "series" : [ "The next generation", "Voyager" ], "century" : 24 },
+				{ "name" : "Jonathan Archer", "series" : [ "Entreprise" ], "century" : 22 },
+				{ "name" : "Jean-Luc Picard", "series" : [ "The next generation" ], "century" : 24 },
+				{ "name" : "James T. Kirk", "series" : [ "The original series" ], "century" : 23 },
+				{ "name" : "Benjamin Sisko", "series" : [ "The next generation", "Deep Space 9" ], "century" : 24 }
+			], 'order by descending with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") group by $century := $x.century return { "century" : $century  }'),
+			[ { "century" : 21 }, { "century" : 22 }, { "century" : 23 }, { "century" : 24 } ], 'group by with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") group by $century := $x.century return { "century" : $century, "count" : count($x) }'),
+			[
+				{ "century" : 21, "count" : 1 }, 
+				{ "century" : 22, "count" : 1 },
+				{ "century" : 23, "count" : 1 },
+				{ "century" : 24, "count" : 4 }
+			], 'group by count with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") group by $century := $x.century return { "century" : $century, "captains" : [ $x.name ] }'),
+			[
+				{ "century" : 21, "captains" : [ "Samantha Carter" ] }, 
+				{ "century" : 22, "captains" : [ "Jonathan Archer" ] }, 
+				{ "century" : 23, "captains" : [ "James T. Kirk" ] }, 
+				{ "century" : 24, "captains" : [ "Jean-Luc Picard", "Benjamin Sisko", "Kathryn Janeway" ] }
+			], 'group by aggregate with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") group by $century := $x.century where count($x) gt 1 return { "century" : $century, "count" : count($x) }'),
+			{ "century" : 24, "count" : 4 }, 'group by condition with collection');
+		
+		check(jsiq.parse('for $x in collection("captains") let $century := $x.century group by $century let $number := count($x) where $number gt 1 return { "century" : $century, "count" : $number }'),
+			{ "century" : 24, "count" : 4 }, 'group let where with collection');
 	});
 	
 	// start QUnit.

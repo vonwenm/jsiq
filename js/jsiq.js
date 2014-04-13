@@ -25,7 +25,10 @@ define(['lodash', 'parser'], function(_, parser)
 		at: {
 			value: function(idx)
 			{
-				return this.items[idx];
+				if (idx < 0 || this.items.length <= idx)
+					return new Sequence();
+					
+				return new Sequence([this.items[idx]]);
 			}
 		},
 		lookup: {
@@ -227,9 +230,10 @@ define(['lodash', 'parser'], function(_, parser)
 				
 				for(var i = 0; i < hierch.length; ++i)
 				{
-					for(var prop in this.local)
+					var scope = hierch[i];
+					for(var prop in scope.local)
 					{
-						var val = this.local[prop];
+						var val = scope.local[prop];
 						if (val === undefined)
 							continue;
 						
@@ -274,6 +278,7 @@ define(['lodash', 'parser'], function(_, parser)
 		{
 			throw new Error(msg);
 		},
+		collections: {},
 		funcs: {
 			count: function(seq)
 			{
@@ -281,6 +286,15 @@ define(['lodash', 'parser'], function(_, parser)
 					throw new Error('count can only be applied to a sequence');
 				
 				return seq.length();
+			},
+			collection: function(name)
+			{
+				var ident = name.string();
+				var col = parser.yy.collections[ident];
+				if (!col)
+					throw new Error("collection " + name + " doesn't exist");
+				
+				return new Sequence(col);
 			}
 		},
 		expr: {
@@ -316,7 +330,8 @@ define(['lodash', 'parser'], function(_, parser)
 					for(var i = 0; i < propvalues.length; ++i)
 					{
 						self.adopt(propvalues[i][0], propvalues[i][1]);
-						obj[ propvalues[i][0].eval().string() ] = propvalues[i][1].eval().value();
+						var seqval = propvalues[i][1].eval();
+						obj[ propvalues[i][0].eval().string() ] = seqval.empty() ? null : seqval.value();
 					}
 				
 					return toseq(obj);
@@ -863,6 +878,13 @@ define(['lodash', 'parser'], function(_, parser)
 		parse: function(input)
 		{
 			return parser.parse(input);
+		},
+		collection: function(name, items)
+		{
+			if (!_.isArray(items))
+				throw new Error('collection must be an array');
+			
+			parser.yy.collections[name] = items;
 		}
 	};
 });
