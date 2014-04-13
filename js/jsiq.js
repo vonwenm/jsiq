@@ -112,6 +112,9 @@ define(['lodash', 'parser'], function(_, parser)
 		atomize: {
 			value: function()
 			{
+				if (this.empty())
+					return null;
+				
 				var value = this.value();
 				var type = typeof value;
 				switch(type)
@@ -657,6 +660,54 @@ define(['lodash', 'parser'], function(_, parser)
 						return conditionexpr.eval().boolean();
 					});
 				});		
+			},
+			orderbyclause: function(comparisons)
+			{
+				return new Expression(function(self, incoming)
+				{
+					return incoming.slice().sort(function(scopeone, scopetwo)
+					{
+						for(var i = 0; i < comparisons.length; ++i)
+						{
+							var comp = comparisons[i](scopeone, scopetwo);
+							if (comp !== 0)
+								return comp;
+						}
+						
+						return 0;
+					});
+				});
+			},
+			orderbycomparison: function(atomicexpr, ascending, emptyleast, collation)
+			{
+				//return comparison function for two incoming scopes
+				return function(scopeone, scopetwo)
+				{
+					atomicexpr.scope = scopeone;
+					var atomone = atomicexpr.eval().atomize();
+					
+					atomicexpr.scope = scopetwo;
+					var atomtwo = atomicexpr.eval().atomize();
+					
+					if (atomone === null && atomtwo === null)
+						return 0;
+					
+					var val = 0;
+					if (atomone === null)
+						val = emptyleast ? -1 : 1;
+					else if (atomtwo === null)
+						val = emptyleast ? 1 : -1;
+					else if (atomone < atomtwo)
+						val = -1;
+					else if (atomone === atomtwo)
+						val = 0;
+					else if (atomone > atomtwo)
+						val = 1;
+					else
+						throw new Error('failed comparing: ' + atomone + ' with ' + atomtwo);
+					
+					return ascending ? val : -val;
+				};
 			},
 			returnclause: function(retexpr)
 			{

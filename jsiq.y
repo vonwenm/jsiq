@@ -54,6 +54,11 @@ ws    [\s]
 "in"                      return 'IN';
 "where"                   return 'WHERE';
 "let"                     return 'LET';
+"order by"                return 'ORDER_BY';
+"ascending"               return 'ASCENDING';
+"descending"              return 'DESCENDING';
+"greatest"                return 'GREATEST';
+"least"                   return 'LEAST';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -274,6 +279,7 @@ FLOWRClause
 	: ForClause
 	| LetClause
 	| WhereClause
+	| OrderByClause
 	;
 
 ForClause
@@ -307,6 +313,27 @@ LetVar
 
 WhereClause
 	: WHERE ExprSingle { $$ = yy.flowr.whereclause($2); }
+	;
+
+OrderByClause
+	: ORDER_BY OrderByClauses { $$ = yy.flowr.orderbyclause($2); }
+	;
+
+OrderByClauses
+	: OrderByClauses ',' OrderByExpression { $1.push($3); $$ = $1; }
+	| OrderByExpression { $$ = [ $1 ]; }
+	;
+	
+OrderByExpression
+	: ExprSingle { $$ = yy.flowr.orderbycomparison($1, true, true); }
+	| ExprSingle ASCENDING { $$ = yy.flowr.orderbycomparison($1, true, true); }
+	| ExprSingle EMPTY LEAST { $$ = yy.flowr.orderbycomparison($1, true, true); }
+	| ExprSingle ASCENDING EMPTY LEAST { $$ = yy.flowr.orderbycomparison($1, true, true); }
+	| ExprSingle ASCENDING EMPTY GREATEST { $$ = yy.flowr.orderbycomparison($1, true, false); }
+	| ExprSingle DESCENDING { $$ = yy.flowr.orderbycomparison($1, false, true); }
+	| ExprSingle EMPTY GREATEST { $$ = yy.flowr.orderbycomparison($1, true, false); }
+	| ExprSingle DESCENDING EMPTY LEAST { $$ = yy.flowr.orderbycomparison($1, false, true); }
+	| ExprSingle DESCENDING EMPTY GREATEST { $$ = yy.flowr.orderbycomparison($1, false, false); }
 	;
 
 ReturnClause

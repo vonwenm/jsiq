@@ -149,6 +149,18 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('for $x in ("one", "two"), $y allowing empty in () return {"x": $x, "y": $y.name}'), [{x:"one", y:null}, {x:"two", y:null}], 'for empty flowr');
 		
 		check(jsiq.parse('for $x in (1, 2, 3, 4) where $x mod 2 eq 0 return $x'), [2, 4], 'where flowr');
+		
+		check(jsiq.parse('for $x in (1, 3, 2, null) order by $x return $x'), [null, 1, 2, 3], 'order by flowr');
+		
+		check(jsiq.parse('for $x in (1, 3, 2, null) order by $x descending empty least return $x'), [3, 2, 1, null], 'order by flowr');
+		
+		check(jsiq.parse('for $x in (1, 3, 2, null) order by $x ascending empty greatest return $x'), [1, 2, 3, null], 'order by flowr');
+		
+		check(jsiq.parse('for $x in ({"order": 2, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 1, "a": []}) order by $x.order, $x.a.length return $x'),
+			[{"order": 1, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 2, "a": []}], 'double order by object flowr');
+			
+		check(jsiq.parse('for $x in ({"order": 2, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 1, "a": []}) order by $x.order descending, $x.a.length return $x'),
+			[{"order": 2, "a": []}, {"order": 1, "a": []}, {"order": 1, "a": "[1, 2]"}], 'double order by object flowr');
 	});
 	
 	// start QUnit.
