@@ -286,7 +286,12 @@ FLOWRExpression
 	;
 
 MapClause
-	: ExprSingle '!' ExprSingle { $$ = yy.expr.flowr(yy.flowr.forclause("$$", false, null, $1), yy.flowr.returnclause($3)); }
+	: ExprSingle '!' ExprSingle
+		{
+			var forclause = yy.flowr.forclause("$$", false, null, $1);
+			var retclause = yy.flowr.returnclause($3);
+			$$ = yy.expr.flowr(yy.flowr.applyfors([forclause]), retclause);
+		}
 	;
 
 FLOWRClauses
@@ -303,7 +308,7 @@ FLOWRClause
 	;
 
 ForClause
-	: FOR ForClauseVars { $$ = $2; }
+	: FOR ForClauseVars { $$ = yy.flowr.applyfors($2); }
 	;
 
 ForClauseVars

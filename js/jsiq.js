@@ -580,7 +580,7 @@ define(['lodash', 'parser'], function(_, parser)
 							results.push(values[i]);
 					}
 					
-					return toseq(results);
+					return new Sequence(results);
 				});
 			},
 			context: function()
@@ -689,6 +689,31 @@ define(['lodash', 'parser'], function(_, parser)
 					});
 				});
 			},
+			applyfors: function(fors)
+			{
+				return new Expression(function(self, incoming, first)
+				{
+					if (first)
+						incoming.push(new Scope());
+					
+					var outgoing = [];
+					for(var i = 0; i < incoming.length; ++i)
+					{
+						var toprocess = [incoming[i]];
+						for(var k = 0; k < fors.length; ++k)
+						{
+							toprocess = _.flatten(
+								toprocess.map(function(scope)
+								{
+									return fors[k](scope);
+								}));
+						}
+						outgoing.push(toprocess);
+					}
+					
+					return _.flatten(outgoing);
+				});
+			},
 			forclause: function(varref, allowempty, atref, inexpr)
 			{
 				function init_scope(scope, idx, value)
@@ -707,40 +732,31 @@ define(['lodash', 'parser'], function(_, parser)
 					}
 				}
 				
-				return new Expression(function(self, incoming, first)
+				return function(scope)
 				{
-					if (first)
-						incoming.push(new Scope());
-					
 					var results = [];
-					for(var i = 0; i < incoming.length; ++i)
+					inexpr.scope = scope;
+					var values = inexpr.eval().items;
+					for(var k = 0; k < values.length; ++k)
 					{
-						inexpr.scope = incoming[i];
-						var values = inexpr.eval().items;
-						for(var k = 0; k < values.length; ++k)
-						{
-							var creation = incoming[i].descendant();
-							
-							init_scope(creation, k + 1, values[k]);
-							
-							results.push(creation);
-						}
+						var creation = scope.descendant();
+						
+						init_scope(creation, k + 1, values[k]);
+						
+						results.push(creation);
 					}
 					
 					if (allowempty && values.length === 0)
 					{
-						for(var i = 0; i < incoming.length; ++i)
-						{
-							var creation = incoming[i].descendant();
+						var creation = scope.descendant();
 
-							init_scope(creation, 0, null);
+						init_scope(creation, 0, null);
 
-							results.push(creation);
-						}
+						results.push(creation);
 					}
 					
 					return results;
-				});		
+				}	
 			},
 			whereclause: function(conditionexpr)
 			{
