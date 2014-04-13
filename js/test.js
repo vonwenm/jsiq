@@ -181,6 +181,8 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('for $x in ({val: 2}, {val: 1}, {val: 1}) group by $value := $x.val where count($x) gt 1 return {value: $value, count: count($x)}'),
 			{value: 1, count: 2}, 'group by with constraint');
+		
+		check(jsiq.parse('(1 to 5) ! ($$ * 2)'), [2, 4, 6, 8, 10], 'simple map');
 	});
 	
 	// start QUnit.

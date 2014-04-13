@@ -75,6 +75,7 @@ ws    [\s]
 "-"                       return '-';
 "*"                       return '*';
 "/"                       return '/';
+"!"                       return '!';
 "#"                       return '#';
 "mod"                     return 'MOD';
 "to"                      return 'RANGE_OP';
@@ -91,6 +92,7 @@ ws    [\s]
 %nonassoc RETURN
 %nonassoc '['
 
+%left '!'
 %left '?'
 %left RANGE_OP
 %left STR_CAT
@@ -280,6 +282,11 @@ FLOWRExpression
 	| LetClause FLOWRClauses ReturnClause { $$ = yy.expr.flowr($1, $2, $3); }
 	| ForClause ReturnClause { $$ = yy.expr.flowr($1, $2); }
 	| LetClause ReturnClause { $$ = yy.expr.flowr($1, $2); }
+	| MapClause
+	;
+
+MapClause
+	: ExprSingle '!' ExprSingle { $$ = yy.expr.flowr(yy.flowr.forclause("$$", false, null, $1), yy.flowr.returnclause($3)); }
 	;
 
 FLOWRClauses

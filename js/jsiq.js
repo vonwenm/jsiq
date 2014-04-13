@@ -292,11 +292,13 @@ define(['lodash', 'parser'], function(_, parser)
 			{
 				return new Expression(function(self)
 				{
-					return new Sequence(exprs.map(function(expr)
+					var seq = new Sequence();
+					exprs.forEach(function(expr)
 					{
 						self.adopt(expr);
-						return expr.eval().value();
-					}));
+						seq.push(expr.eval());
+					});
+					return seq;
 				});
 			},
 			empty: function()
@@ -552,7 +554,7 @@ define(['lodash', 'parser'], function(_, parser)
 					var queried = expr.eval();
 					var number = predicate.eval().value();
 					if (typeof number === "number" && number % 1 === 0)
-						return toseq(queried.index(number)); //if predicate evaluates to an integer, return the item at index
+						return toseq(queried.at(number - 1)); //if predicate evaluates to an integer, return the item at index
 
 					var results = [];
 					var values = queried.value();
