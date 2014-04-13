@@ -205,6 +205,49 @@ define(['lodash', 'parser'], function(_, parser)
 				child.parent = this;
 				return child;
 			}
+		},
+		hierarchy: {
+			value: function()
+			{
+				var hierarch = [this];
+				var parent = this.parent;
+				while(parent)
+				{
+					hierarch.push(parent);
+					parent = parent.parent;
+				}
+				return hierarch.reverse();
+			}
+		},
+		flattened: {
+			value: function()
+			{
+				var hierch = this.hierarchy();
+				var flat = new Scope();
+				
+				for(var i = 0; i < hierch.length; ++i)
+				{
+					for(var prop in this.local)
+					{
+						var val = this.local[prop];
+						if (val === undefined)
+							continue;
+						
+						flat.set(prop, val);
+					}
+				}
+				
+				return flat;
+			}
+		},
+		keys: {
+			value: function()
+			{
+				var keys = [];
+				for(var prop in this.local)
+					keys.push(prop);
+				return keys;
+			}
 		}
 	});
 	
@@ -230,6 +273,15 @@ define(['lodash', 'parser'], function(_, parser)
 		parseError : function(msg)
 		{
 			throw new Error(msg);
+		},
+		funcs: {
+			count: function(seq)
+			{
+				if (!(seq instanceof Sequence))
+					throw new Error('count can only be applied to a sequence');
+				
+				return seq.length();
+			}
 		},
 		expr: {
 			atomic: function(itm)
@@ -475,6 +527,14 @@ define(['lodash', 'parser'], function(_, parser)
 			{
 				return new Expression(function(self)
 				{
+					if (exprarray.length === 1)
+					{
+						self.adopt(exprarray[0]);
+						var val = exprarray[0].eval();
+						if (val.length() !== 1)
+							return toseq(val);
+					}
+					
 					return toseq(exprarray.map(function(expr)
 					{
 						self.adopt(expr);
@@ -553,6 +613,22 @@ define(['lodash', 'parser'], function(_, parser)
 					}
 					
 					return defaultexpr.eval();
+				});
+			},
+			invoke: function(name, param_exprs)
+			{
+				var fun = parser.yy.funcs[name];
+				if (!parser.yy.funcs[name])
+					throw new Error('function ' + name + ' does not exist');
+				
+				return new Expression(function(self)
+				{
+					var args = param_exprs.map(function(expr)
+					{
+						self.adopt(expr);
+						return expr.eval();
+					});
+					return toseq(fun.apply(null, args));
 				});
 			},
 			flowr: function()
@@ -708,6 +784,64 @@ define(['lodash', 'parser'], function(_, parser)
 					
 					return ascending ? val : -val;
 				};
+			},
+			groupbyclause: function(groupings) //groupings is an array of [group_name, group_value_expr]
+			{
+				return new Expression(function(self, incoming)
+				{
+					var groups = {};
+					
+					for(var i = 0; i < incoming.length; ++i)
+					{
+						var scope = incoming[i];
+						var key = groupings.map(function(grp)
+						{
+							var value = grp[1];
+							value.scope = scope;
+							return value.eval().atomize();
+						}).join(';');
+						
+						var arr = groups[key];
+						if (!arr)
+							groups[key] = arr = [];
+
+						arr.push(scope);
+					}
+					
+					var outgoing = [];
+					for(var groupkey in groups)
+					{
+						var grouped = groups[groupkey];
+						var out = new Scope();
+						var flat = grouped.map(function(itm){ return itm.flattened(); });
+						
+						flat[0].keys().forEach(function(key)
+						{
+							var exprs = flat.map(function(scope)
+							{
+								return scope.lookup(key);
+							});
+							
+							var seq = new Sequence();
+							exprs.forEach(function(expr)
+							{
+								seq.push(expr.eval());
+							});
+							
+							out.set(key, atomicexpr(seq));
+						});
+						
+						groupings.forEach(function(name_expr)
+						{
+							name_expr[1].scope = flat[0];
+							out.set(name_expr[0], atomicexpr(name_expr[1].eval().atomize()));
+						});
+						
+						outgoing.push(out);
+					}
+					
+					return outgoing;
+				});
 			},
 			returnclause: function(retexpr)
 			{

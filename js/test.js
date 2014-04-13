@@ -71,6 +71,8 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }, "foo").foo'), ["bar1", "bar2"], 'sequence mixed object lookup');
 		
+		check(jsiq.parse('[({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }).foo]'), ["bar1", "bar2"], 'sequence to array');
+		
 		check(jsiq.parse('{ "foo bar" : "bar" }."foo bar"'), "bar", 'quotes for object lookup');
 		
 		check(jsiq.parse('{ "foobar" : "bar" }.("foo" || "bar")'), "bar", 'object lookup with a nested expression');
@@ -84,6 +86,12 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		check(jsiq.parse('[ 1, 2, 3, 4, 5, 6 ]'), [ 1, 2, 3, 4, 5, 6 ], 'array construction');
 		
 		check(jsiq.parse('[[1]]'), [[1]], 'nested array');
+		
+		check(jsiq.parse('[[1, 2]]'), [[1, 2]], 'nested array');
+		
+		check(jsiq.parse('[[1, 2], 1]'), [[1, 2], 1], 'nested array');
+		
+		check(jsiq.parse('[[]]'), [[]], 'empty nested array');
 		
 		check(jsiq.parse('[0, [1]], [[0], 1]'), [[0, [1]], [[0], 1]], 'non-empty nested array');
 		
@@ -156,11 +164,23 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('for $x in (1, 3, 2, null) order by $x ascending empty greatest return $x'), [1, 2, 3, null], 'order by flowr');
 		
-		check(jsiq.parse('for $x in ({"order": 2, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 1, "a": []}) order by $x.order, $x.a.length return $x'),
-			[{"order": 1, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 2, "a": []}], 'double order by object flowr');
+		check(jsiq.parse('for $x in ({order: 2, a: []}, {order: 1, a: [1, 2]}, {order: 1, a: []}) order by $x.order, $x.a.length return $x'),
+			[{order: 1, a: []}, {order: 1, a: [1, 2]}, {order: 2, a: []}], 'double order by object flowr');
 			
-		check(jsiq.parse('for $x in ({"order": 2, "a": []}, {"order": 1, "a": "[1, 2]"}, {"order": 1, "a": []}) order by $x.order descending, $x.a.length return $x'),
-			[{"order": 2, "a": []}, {"order": 1, "a": []}, {"order": 1, "a": "[1, 2]"}], 'double order by object flowr');
+		check(jsiq.parse('for $x in ({order: 2, a: []}, {order: 1, a: [1, 2]}, {order: 1, a: []}) order by $x.order descending, $x.a.length return $x'),
+			[{order: 2, a: []}, {order: 1, a: []}, {order: 1, a: [1, 2]}], 'double order by object flowr');
+			
+		check(jsiq.parse('for $x in ({val: 2}, {val: 1}, {val: 1}) group by $value := $x.val return {value: $value}'),
+			[{value: 1}, {value: 2}], 'group by');
+		
+		check(jsiq.parse('for $x in ({val: 2}, {val: 1}, {val: 1}) group by $value := $x.val return {value: $value, count: count($x)}'),
+			[{value: 1, count: 2}, {value: 2, count: 1}], 'group by using aggregated');
+		
+		check(jsiq.parse('for $x in ({val: 2, name: "john"}, {val: 1, name: "jim"}, {val: 1, name: "joe"}) group by $value := $x.val return {value: $value, names: [$x.name]}'),
+			[{value: 1, names: ["jim", "joe"]}, {value: 2, names: ["john"]}], 'group by using aggregated props');
+		
+		check(jsiq.parse('for $x in ({val: 2}, {val: 1}, {val: 1}) group by $value := $x.val where count($x) gt 1 return {value: $value, count: count($x)}'),
+			{value: 1, count: 2}, 'group by with constraint');
 	});
 	
 	// start QUnit.

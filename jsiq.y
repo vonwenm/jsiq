@@ -59,6 +59,7 @@ ws    [\s]
 "descending"              return 'DESCENDING';
 "greatest"                return 'GREATEST';
 "least"                   return 'LEAST';
+"group by"                return 'GROUP_BY';
 "("                       return '(';
 ")"                       return ')';
 "["                       return '[';
@@ -133,6 +134,7 @@ ExprSingle
 	| VarRef
 	| IfExpression
 	| SwitchExpression
+	| FunctionExpression
 	| FLOWRExpression
 	| '(' Expression ')' { $$ = yy.expr.multi($2); }
 	| '(' ')' { $$ = yy.expr.empty(); }
@@ -263,6 +265,16 @@ SwitchCaseClause
 	: CASE ExprSingle RETURN ExprSingle { $$ = [ $2, $4 ]; }
 	;
 
+FunctionExpression
+	: IDENT '(' FunctionParameters ')' { $$ = yy.expr.invoke($1, $3); }
+	| IDENT '(' ')' { $$ = yy.expr.invoke($1, []); }
+	;
+
+FunctionParameters
+	: FunctionParameters ',' ExprSingle { $1.push($3); $$ = $1; }
+	| ExprSingle { $$ = [ $1 ]; }
+	;
+
 FLOWRExpression
 	: ForClause FLOWRClauses ReturnClause { $$ = yy.expr.flowr($1, $2, $3); }
 	| LetClause FLOWRClauses ReturnClause { $$ = yy.expr.flowr($1, $2, $3); }
@@ -280,6 +292,7 @@ FLOWRClause
 	| LetClause
 	| WhereClause
 	| OrderByClause
+	| GroupByClause
 	;
 
 ForClause
@@ -334,6 +347,20 @@ OrderByExpression
 	| ExprSingle EMPTY GREATEST { $$ = yy.flowr.orderbycomparison($1, true, false); }
 	| ExprSingle DESCENDING EMPTY LEAST { $$ = yy.flowr.orderbycomparison($1, false, true); }
 	| ExprSingle DESCENDING EMPTY GREATEST { $$ = yy.flowr.orderbycomparison($1, false, false); }
+	;
+
+GroupByClause
+	: GROUP_BY GroupByClauses { $$ = yy.flowr.groupbyclause($2); }
+	;
+
+GroupByClauses
+	: GroupByClauses ',' GroupByExpression { $1.push($3); $$ = $1; }
+	| GroupByExpression { $$ = [ $1 ]; }
+	;
+	
+GroupByExpression
+	: VAR_REF { $$ = [$1, yy.expr.varref(yytext)]; }
+	| VAR_REF ':=' ExprSingle { $$ = [$1, $3]; }
 	;
 
 ReturnClause
