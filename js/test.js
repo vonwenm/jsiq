@@ -32,7 +32,7 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 {
 	function check(expr, expected, msg)
 	{
-		deepEqual(expr.eval().value(), expected, msg);
+		deepEqual(expr, expected, msg);
 	}
 	
 	test('basic', function()

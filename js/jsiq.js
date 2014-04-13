@@ -1,5 +1,6 @@
 define(['lodash', 'parser'], function(_, parser)
 {
+	//a flat sequence of items (can't contain other sequences)
 	function Sequence(itms)
 	{
 		this.items = [];
@@ -13,6 +14,7 @@ define(['lodash', 'parser'], function(_, parser)
 	}
 	
 	Object.defineProperties(Sequence.prototype, {
+		//add an item to the sequence while insuring the flatness of it all
 		push: {
 			value: function(itm)
 			{
@@ -22,6 +24,7 @@ define(['lodash', 'parser'], function(_, parser)
 					this.items.push(itm);                 
 			} 
 		},
+		//fetches an item safely form a sequence, returns an empty sequence if out of bounds
 		at: {
 			value: function(idx)
 			{
@@ -31,6 +34,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return new Sequence([this.items[idx]]);
 			}
 		},
+		//used for property lookup using the (dot) notation
 		lookup: {
 			value: function(key)
 			{
@@ -43,6 +47,7 @@ define(['lodash', 'parser'], function(_, parser)
 				}).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
+		//used to index (number) all arrays of a sequence
 		index: {
 			value: function(idx)
 			{
@@ -50,6 +55,21 @@ define(['lodash', 'parser'], function(_, parser)
 				return new Sequence(_.pluck(arrays, idx - 1).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
+		//returns the amounts of items contained in the sequence
+		length: {
+			value: function()
+			{
+				return this.items.length;
+			}
+		},
+		//returns whether or not the sequence is empty
+		empty: {
+			value: function()
+			{
+				return this.items.length === 0;
+			}
+		},
+		//returns all elements of all arrays in the sequence
 		unbox: {
 			value: function(idx)
 			{
@@ -57,6 +77,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return new Sequence(_.flatten(arrays));
 			}
 		},
+		//fetches all items in a list or a single item if the sequence only contains one
 		value: {
 			value: function()
 			{
@@ -66,6 +87,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return this.items;
 			}
 		},
+		//interprets the sequence as a boolean
 		boolean: {
 			value: function()
 			{
@@ -75,6 +97,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return !!this.value();
 			}
 		},
+		//interprets the sequence as a string
 		string: {
 			value: function()
 			{
@@ -87,18 +110,7 @@ define(['lodash', 'parser'], function(_, parser)
 				throw new Error("can't convert sequence to string");
 			}
 		},
-		length: {
-			value: function()
-			{
-				return this.items.length;
-			}
-		},
-		empty: {
-			value: function()
-			{
-				return this.items.length === 0;
-			}
-		},
+		//interprets the sequence as a number
 		number: {
 			value: function()
 			{
@@ -112,6 +124,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return num;
 			}
 		},
+		//converts the sequence to a single atomic value
 		atomize: {
 			value: function()
 			{
@@ -136,6 +149,7 @@ define(['lodash', 'parser'], function(_, parser)
 		}
 	});
 	
+	//represents a jsoniq expression
 	function Expression(evl)
 	{
 		this.scope = new Scope();
@@ -150,6 +164,7 @@ define(['lodash', 'parser'], function(_, parser)
 	}
 	
 	Object.defineProperties(Expression.prototype, {
+		//makes all expressions passed as arguments children of this expression with respect to variable scope
 		adopt: {
 			value: function()
 			{
@@ -163,6 +178,7 @@ define(['lodash', 'parser'], function(_, parser)
 		}
 	});
 	
+	//represents nestable expression scopes
 	function Scope()
 	{
 		this.parent = null;
@@ -170,6 +186,7 @@ define(['lodash', 'parser'], function(_, parser)
 	}
 	
 	Object.defineProperties(Scope.prototype, {
+		//binds a name to an expression
 		set: {
 			value: function(name, value)
 			{
@@ -179,6 +196,7 @@ define(['lodash', 'parser'], function(_, parser)
 					throw new Error('scope value should be an Expression');
 			}
 		},
+		//looks up a name in the scope hierarchy
 		lookup: {
 			value: function(name)
 			{
@@ -192,15 +210,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return undefined;
 			}
 		},
-		childof: {
-			value: function(parentexpr)
-			{
-				if (!parentexpr)
-					return;
-				
-				this.parent = parentexpr.scope;
-			}
-		},
+		//creates a descendant of this scope
 		descendant: {
 			value: function()
 			{
@@ -209,6 +219,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return child;
 			}
 		},
+		//returns a list containing the scope hierarchy in order of the root parent to the current scope
 		hierarchy: {
 			value: function()
 			{
@@ -222,6 +233,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return hierarch.reverse();
 			}
 		},
+		//flattens the entire scope hierarchy into a single scope
 		flattened: {
 			value: function()
 			{
@@ -244,6 +256,7 @@ define(['lodash', 'parser'], function(_, parser)
 				return flat;
 			}
 		},
+		//fetches all the names of the expressions bound to this scope (doesn't go up the hierarchy)
 		keys: {
 			value: function()
 			{
@@ -255,6 +268,7 @@ define(['lodash', 'parser'], function(_, parser)
 		}
 	});
 	
+	//converts an single value into a sequence
 	function toseq(itm)
 	{
 		if  (itm instanceof Sequence)
@@ -263,6 +277,7 @@ define(['lodash', 'parser'], function(_, parser)
 		return new Sequence([itm]);
 	}
 	
+	//converts a single value into an expression
 	function atomicexpr(itm)
 	{
 		var seq = toseq(itm);
@@ -272,21 +287,28 @@ define(['lodash', 'parser'], function(_, parser)
 		});
 	}
 	
-	var globalscope = [];
 	parser.yy = {
 		parseError : function(msg)
 		{
 			throw new Error(msg);
 		},
+		//dictionary of all collections that have been registered
 		collections: {},
+		
+		//all the available functions in scope for jsoniq expressions
+		//@params: of type Sequence
+		//@returns: either sequences or values. They will be converted
+		//	to sequences safely and automatically using toseq
 		funcs: {
+			//returns the number of elements in a sequence
 			count: function(seq)
 			{
 				if (!(seq instanceof Sequence))
 					throw new Error('count can only be applied to a sequence');
 				
-				return seq.length();
+				return toseq(seq.length());
 			},
+			//returns the sequence represented by a collection
 			collection: function(name)
 			{
 				var ident = name.string();
@@ -294,9 +316,13 @@ define(['lodash', 'parser'], function(_, parser)
 				if (!col)
 					throw new Error("collection " + name + " doesn't exist");
 				
-				return new Sequence(col);
+				return col;
 			}
 		},
+		
+		//internal functions to generate the jsoniq expressions
+		//@params: expressions from the parser
+		//@return: an expression that returns a sequence, and that accepts itself as a first parameter
 		expr: {
 			atomic: function(itm)
 			{
@@ -635,7 +661,7 @@ define(['lodash', 'parser'], function(_, parser)
 			invoke: function(name, param_exprs)
 			{
 				var fun = parser.yy.funcs[name];
-				if (!parser.yy.funcs[name])
+				if (!fun)
 					throw new Error('function ' + name + ' does not exist');
 				
 				return new Expression(function(self)
@@ -668,7 +694,12 @@ define(['lodash', 'parser'], function(_, parser)
 				});
 			},
 		},
-		//flowr clauses are expressions that return an array of context variables, or undefined to just pass
+		//expressions defining all flowr clauses
+		//contrarily to the expressions above, the returned expressions
+		//@params: expressions from the parser
+		//@return: an expression that accepts self, a list of incoming scopes and a flag
+		//	that specifies if this is the first expression in a flowr expression. It must return
+		//	an array of outgoing scopes to be passed to the next flowr expression
 		flowr: {
 			letclause: function(varref, valueexpr)
 			{
@@ -714,8 +745,12 @@ define(['lodash', 'parser'], function(_, parser)
 					return _.flatten(outgoing);
 				});
 			},
+			//returns a special function that acts on a single incoming scope
+			//the for clause is used in combination with "applyfors" to chain
+			//for expressions in the same statement
 			forclause: function(varref, allowempty, atref, inexpr)
 			{
+				//internal function to set the scope variables properly (the value and positional variables)
 				function init_scope(scope, idx, value)
 				{
 					scope.set(varref, new Expression(function()
@@ -787,6 +822,9 @@ define(['lodash', 'parser'], function(_, parser)
 					});
 				});
 			},
+			//returns a special function that acts one two incoming scopes to order them
+			//it is used in combination with "orderbyclause" to chain
+			//orderby expressions in the same statement
 			orderbycomparison: function(atomicexpr, ascending, emptyleast, collation)
 			{
 				//return comparison function for two incoming scopes
@@ -824,6 +862,7 @@ define(['lodash', 'parser'], function(_, parser)
 				{
 					var groups = {};
 					
+					//partition the incoming scopes with respect to the group by property
 					for(var i = 0; i < incoming.length; ++i)
 					{
 						var scope = incoming[i];
@@ -841,6 +880,7 @@ define(['lodash', 'parser'], function(_, parser)
 						arr.push(scope);
 					}
 					
+					//create the aggregated outgoing scope for each group
 					var outgoing = [];
 					for(var groupkey in groups)
 					{
@@ -864,6 +904,7 @@ define(['lodash', 'parser'], function(_, parser)
 							out.set(key, atomicexpr(seq));
 						});
 						
+						//set the group specific variables for the outgoing scope
 						groupings.forEach(function(name_expr)
 						{
 							name_expr[1].scope = flat[0];
@@ -876,6 +917,8 @@ define(['lodash', 'parser'], function(_, parser)
 					return outgoing;
 				});
 			},
+			//converts all the outgoing scopes at the end of a flowr expression
+			//to sequences that can be used in the expr functions
 			returnclause: function(retexpr)
 			{
 				return new Expression(function(self, incoming)
@@ -891,16 +934,21 @@ define(['lodash', 'parser'], function(_, parser)
 	};
 	
 	return {
+		//parses a jsoniq expression and returns either a single value, or an array of values
+		//not sure if we should return a sequence here or some sort of wrapper class
+		//to aide the user in determining what type of result the expression yielded
 		parse: function(input)
 		{
-			return parser.parse(input);
+			return parser.parse(input).eval().value();
 		},
+		
+		//registers a named collection that can be queried by expressions passed to the parse function
 		collection: function(name, items)
 		{
 			if (!_.isArray(items))
 				throw new Error('collection must be an array');
 			
-			parser.yy.collections[name] = items;
+			parser.yy.collections[name] = new Sequence(items);
 		}
 	};
 });
