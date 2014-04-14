@@ -51,6 +51,8 @@ require(['jquery', 'lodash', 'QUnit', 'jsiq'], function($, _, QUnit, jsiq)
 		
 		check(jsiq.parse('1 * ( 2 + 3 ) + 7 / 2 - (-8) mod 2'), 8.5, 'check mul add');
 		
+		check(jsiq.parse('1 * ( 2 + 3 ) + 7 div 2 - (-8) mod 2'), 8.5, 'check mul add div');
+		
 		check(jsiq.parse('1 + 1 eq 2 or 1 + 1 eq 3, 1 + 1 eq 2, 1 lt 2'), [true, true, true], 'check comparison');
 		
 		check(jsiq.parse('1 eq null, "foo" ne null, null eq null'), [false, true, true], 'check comparison');

@@ -1,9 +1,16 @@
-
-/* description: Parses end executes mathematical expressions. */
-
 /* lexical grammar */
 %lex
 %options case-insensitive
+
+/*
+
+<credit attr='where it is due'>
+
+the following three NUMBER and STRING tokenizer functions were taken from the
+objeq (Javascript Object Querying) Project at https://github.com/agilosoftware/objeq
+which is under the MIT License and is copyrighted by Copyright (c) 2012 Agilo Software GmbH
+
+*/
 
 digit [0-9]
 esc   "\\"
@@ -22,6 +29,12 @@ ws    [\s]
 "'"("\\"['bfvnrt/{esc}]|"\\u"[a-fA-F0-9]{4}|[^'{esc}])*"'" {
   yytext = yytext.substr(1,yyleng-2); return 'STRING';
 }
+
+/*
+
+</credit>
+
+*/
 
 {ws}+                     /* skip whitespace */
 "undefined"               return 'UNDEFINED';
@@ -78,6 +91,7 @@ ws    [\s]
 "!"                       return '!';
 "#"                       return '#';
 "mod"                     return 'MOD';
+"div"                     return 'DIV';
 "to"                      return 'RANGE_OP';
 "$$"                      return 'VAR_CONTEXT';
 \$[A-Za-z_][A-Za-z_0-9]*   return 'VAR_REF';
@@ -100,7 +114,7 @@ ws    [\s]
 %left EQ NE
 %left GT GE LT LE
 %left '+' '-'
-%left '*' '/' MOD
+%left '*' '/' DIV MOD
 %left '.'
 %left UNARY
 
@@ -224,6 +238,7 @@ AdditiveExpression
 MultiplicativeExpression
 	: ExprSingle MOD ExprSingle { $$ = yy.expr.mod($1, $3); }
 	| ExprSingle '/' ExprSingle { $$ = yy.expr.div($1, $3); }
+	| ExprSingle DIV ExprSingle { $$ = yy.expr.div($1, $3); }
 	| ExprSingle '*' ExprSingle { $$ = yy.expr.mul($1, $3); }
 	;
 
