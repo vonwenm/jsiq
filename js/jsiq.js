@@ -1,4 +1,4 @@
-define(['lodash', 'parser'], function(_, parser)
+define(['jsiqparser'], function(parser)
 {
 	//a flat sequence of items (can't contain other sequences)
 	function Sequence(itms)
@@ -51,8 +51,8 @@ define(['lodash', 'parser'], function(_, parser)
 		index: {
 			value: function(idx)
 			{
-				var arrays = this.items.filter(function(itm) { return _.isArray(itm); });
-				return new Sequence(_.pluck(arrays, idx - 1).filter(function(itm){ return itm !== undefined; }));
+				var arrays = this.items.filter(function(itm) { return isArray(itm); });
+				return new Sequence(pluck(arrays, idx - 1).filter(function(itm){ return itm !== undefined; }));
 			}
 		},
 		//returns the amounts of items contained in the sequence
@@ -73,8 +73,8 @@ define(['lodash', 'parser'], function(_, parser)
 		unbox: {
 			value: function(idx)
 			{
-				var arrays = this.items.filter(function(itm) { return _.isArray(itm); });
-				return new Sequence(_.flatten(arrays));
+				var arrays = this.items.filter(function(itm) { return isArray(itm); });
+				return new Sequence(flatten(arrays));
 			}
 		},
 		//fetches all items in a list or a single item if the sequence only contains one
@@ -676,7 +676,7 @@ define(['lodash', 'parser'], function(_, parser)
 			},
 			flowr: function()
 			{
-				var clauses = _.flatten(Array.prototype.slice.call(arguments));
+				var clauses = flatten(Array.prototype.slice.call(arguments));
 				
 				return new Expression(function(self)
 				{
@@ -733,7 +733,7 @@ define(['lodash', 'parser'], function(_, parser)
 						var toprocess = [incoming[i]];
 						for(var k = 0; k < fors.length; ++k)
 						{
-							toprocess = _.flatten(
+							toprocess = flatten(
 								toprocess.map(function(scope)
 								{
 									return fors[k](scope);
@@ -742,7 +742,7 @@ define(['lodash', 'parser'], function(_, parser)
 						outgoing.push(toprocess);
 					}
 					
-					return _.flatten(outgoing);
+					return flatten(outgoing);
 				});
 			},
 			//returns a special function that acts on a single incoming scope
@@ -933,6 +933,36 @@ define(['lodash', 'parser'], function(_, parser)
 		},
 	};
 	
+	//helper functions to remove lodash dependency
+	
+	var isArray = Array.isArray || function(arr) {
+		return Object.prototype.toString.call(arr) == '[object Array]';
+	}
+	
+	//flattens arrays recursively
+	function flatten(arr, flat)
+	{
+		flat = flat || [];
+		for(var i = 0; i < arr.length; ++i)
+		{
+			var val = arr[i];
+			if (isArray(val))
+				flatten(val, flat);
+			else
+				flat.push(val);
+		}
+		return flat;
+	}
+	
+	//fetches all the key values from an array of objects
+	function pluck(arr, key)
+	{
+		return arr.map(function(itm)
+		{
+			return itm[key];
+		});
+	}
+	
 	return {
 		//parses a jsoniq expression and returns either a single value, or an array of values
 		//not sure if we should return a sequence here or some sort of wrapper class
@@ -945,7 +975,7 @@ define(['lodash', 'parser'], function(_, parser)
 		//registers a named collection that can be queried by expressions passed to the parse function
 		collection: function(name, items)
 		{
-			if (!_.isArray(items))
+			if (!isArray(items))
 				throw new Error('collection must be an array');
 			
 			parser.yy.collections[name] = new Sequence(items);
