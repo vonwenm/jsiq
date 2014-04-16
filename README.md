@@ -2,7 +2,7 @@
 
 ### A Javascript implementation of the [JSONiq](http://www.jsoniq.org/) query language
 
-Implemented using the [jison parser generator](https://www.google.com)
+Implemented using the [jison parser generator](http://zaach.github.io/jison/)
 
 jsiq's main goal is to facilitate querying json data in a web client. It does not currently implement the full JSONiq standard, but rather a large enough subset to create complexe sql-like queries.
 
