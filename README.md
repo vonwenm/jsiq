@@ -6,6 +6,20 @@ Implemented using the [jison parser generator](https://www.google.com)
 
 jsiq's main goal is to facilitate querying json data in a web client. It does not currently implement the full JSONiq standard, but rather a large enough subset to create complexe sql-like queries.
 
+### Usage
+
+add the minified release/jsiq.js file as a dependency (ie require(["jsiq"]...)
+
+    jsiq = {
+        // a function that takes a jsoniq expression as an input string and
+        // returns either a single result or an array of results
+        query: function(jsoniq_expression){},
+        
+        // registers a collection that can then be used
+        // in a jsoniq query using the collection(name) function
+        collection: function(name, array){}
+    };
+
 ### JSONiq Implementation Status
 -------------------
 

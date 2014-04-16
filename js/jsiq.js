@@ -967,7 +967,7 @@ define(['jsiqparser'], function(parser)
 		//parses a jsoniq expression and returns either a single value, or an array of values
 		//not sure if we should return a sequence here or some sort of wrapper class
 		//to aide the user in determining what type of result the expression yielded
-		parse: function(input)
+		query: function(input)
 		{
 			return parser.parse(input).eval().value();
 		},
