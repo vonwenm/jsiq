@@ -346,6 +346,13 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		
 		check(jsiq.query('for $x in collection("captains") let $century := $x.century group by $century let $number := count($x) where $number gt 1 return { "century" : $century, "count" : $number }'),
 			{ "century" : 24, "count" : 4 }, 'group let where with collection');
+		
+		jsiq.func('json', function(seq)
+		{
+			return JSON.parse(seq.string());
+		});
+		
+		jsiq.query("json('{\"foo\": 1}').foo", 1, 'invoke custom function');
 	});
 	
 	// start QUnit.
