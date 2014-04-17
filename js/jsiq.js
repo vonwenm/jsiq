@@ -979,6 +979,12 @@ define(['jsiqparser'], function(parser)
 				throw new Error('collection must be an array');
 			
 			parser.yy.collections[name] = new Sequence(items);
+		},
+		
+		//registers a function that can be called by a jsoniq expression
+		func: function(name, fun)
+		{
+			parser.yy.funcs[name] = fun;
 		}
 	};
 });
