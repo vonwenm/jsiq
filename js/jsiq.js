@@ -1014,8 +1014,21 @@ define(['jsiqparser'], function(parser)
 		{
 			parser.yy.funcs[name] = function()
 			{
-				var argvals = Array.prototype.slice.call(arguments).map(function(itm){ return itm.value(); });
+				var argvals = Array.prototype.slice.call(arguments).map(function(itm){ return itm.single(); });
 				return fun.apply(undefined, argvals);
+			};
+		},
+		
+		//registers a sequence modifier that can be called by a jsoniqexpression
+		//sequence modifiers receive a sequence as a first parameter, as a javascript array type
+		//and must return an array which will be converted to a sequence
+		//atomics can be passed as parameters following the initial sequence
+		modifier: function(name, fun)
+		{
+			parser.yy.funcs[name] = function()
+			{
+				var argvals = Array.prototype.slice.call(arguments).map(function(itm, idx){ return idx === 0 ? itm.items : itm.single(); });
+				return new Sequence(fun.apply(undefined, argvals));
 			};
 		}
 	};

@@ -356,6 +356,13 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		
 		check(jsiq.query("json('{\"foo\": 1}').foo"), [1], 'invoke custom function');
 		
+		jsiq.modifier('add', function(numbers, val)
+		{
+			return numbers.map(function(num){ return num + val; });
+		});
+		
+		check(jsiq.query("add((1, 2, 3, 4, 5), 1)"), [2, 3, 4, 5, 6], 'invoke custom modifier');
+		
 		check(jsiq.query("[()]"), [[]], 'empty sequence to array');
 	});
 	
