@@ -586,14 +586,6 @@ define(['jsiqparser'], function(parser)
 			{
 				return new Expression(function(self)
 				{
-					if (exprarray.length === 1)
-					{
-						self.adopt(exprarray[0]);
-						var val = exprarray[0].eval();
-						if (val.length() !== 1)
-							return toseq(val);
-					}
-					
 					return toseq(mapmany(exprarray, function(expr)
 					{
 						self.adopt(expr);

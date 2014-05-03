@@ -58,7 +58,7 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		
 		check(jsiq.query('({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }, "foo").foo'), ["bar1", "bar2"], 'sequence mixed object lookup');
 		
-		check(jsiq.query('[({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }).foo]'), ["bar1", "bar2"], 'sequence to array');
+		check(jsiq.query('[({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }).foo]'), [["bar1", "bar2"]], 'sequence to array');
 		
 		check(jsiq.query('{ "foo bar" : "bar" }."foo bar"'), ["bar"], 'quotes for object lookup');
 		
@@ -356,7 +356,7 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		
 		check(jsiq.query("json('{\"foo\": 1}').foo"), [1], 'invoke custom function');
 		
-		check(jsiq.query("[()]"), [], 'empty sequence to array');
+		check(jsiq.query("[()]"), [[]], 'empty sequence to array');
 	});
 	
 	// start QUnit.
