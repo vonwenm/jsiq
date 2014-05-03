@@ -22,37 +22,37 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 	
 	test('basic', function()
 	{		
-		check(jsiq.query("true"), true, 'check bool');
+		check(jsiq.query("true"), [true], 'check bool');
 		
-		check(jsiq.query('"hello world"'), "hello world", 'check string');
+		check(jsiq.query('"hello world"'), ["hello world"], 'check string');
 		
 		check(jsiq.query('1 to 5'), [1, 2, 3, 4, 5], 'check range');
 		
-		check(jsiq.query('1 + 5'), 6, 'check addition');
+		check(jsiq.query('1 + 5'), [6], 'check addition');
 		
-		check(jsiq.query('2 * 3 + 5'), 11, 'check mul add');
+		check(jsiq.query('2 * 3 + 5'), [11], 'check mul add');
 		
 		check(jsiq.query('true, true'), [true, true], 'check multi value');
 		
-		check(jsiq.query('1 * ( 2 + 3 ) + 7 / 2 - (-8) mod 2'), 8.5, 'check mul add');
+		check(jsiq.query('1 * ( 2 + 3 ) + 7 / 2 - (-8) mod 2'), [8.5], 'check mul add');
 		
-		check(jsiq.query('1 * ( 2 + 3 ) + 7 div 2 - (-8) mod 2'), 8.5, 'check mul add div');
+		check(jsiq.query('1 * ( 2 + 3 ) + 7 div 2 - (-8) mod 2'), [8.5], 'check mul add div');
 		
 		check(jsiq.query('1 + 1 eq 2 or 1 + 1 eq 3, 1 + 1 eq 2, 1 lt 2'), [true, true, true], 'check comparison');
 		
 		check(jsiq.query('1 eq null, "foo" ne null, null eq null'), [false, true, true], 'check comparison');
 		
-		check(jsiq.query('true and ( true or not true )'), true, 'check logic');
+		check(jsiq.query('true and ( true or not true )'), [true], 'check logic');
 		
-		check(jsiq.query('1 + 1 eq 2 or 1 + 1 eq 3'), true, 'logics and comparing operands');
+		check(jsiq.query('1 + 1 eq 2 or 1 + 1 eq 3'), [true], 'logics and comparing operands');
 		
 		check(jsiq.query('boolean(()), boolean(3), boolean(null), boolean("foo"), boolean("")'), [false, true, false, true, false], 'boolean conversion');
 		
 		check(jsiq.query('0 and true, not (not 1e42)'), [false, true], 'boolean conversion');
 		
-		check(jsiq.query('{ "foo" : "bar" } or false'), true, 'object to boolean');
+		check(jsiq.query('{ "foo" : "bar" } or false'), [true], 'object to boolean');
 		
-		check(jsiq.query('{ "foo" : "bar" }.foo'), "bar", 'object lookup');
+		check(jsiq.query('{ "foo" : "bar" }.foo'), ["bar"], 'object lookup');
 		
 		check(jsiq.query('({ "foo" : "bar" }, { "foo" : "bar2" }, { "bar" : "foo" }).foo'), ["bar", "bar2"], 'sequence object lookup');
 		
@@ -60,74 +60,76 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		
 		check(jsiq.query('[({ "foo" : "bar1" }, [ "foo", "bar" ], { "foo" : "bar2" }).foo]'), ["bar1", "bar2"], 'sequence to array');
 		
-		check(jsiq.query('{ "foo bar" : "bar" }."foo bar"'), "bar", 'quotes for object lookup');
+		check(jsiq.query('{ "foo bar" : "bar" }."foo bar"'), ["bar"], 'quotes for object lookup');
 		
-		check(jsiq.query('{ "foobar" : "bar" }.("foo" || "bar")'), "bar", 'object lookup with a nested expression');
+		check(jsiq.query('{ "foobar" : "bar" }.("foo" || "bar")'), ["bar"], 'object lookup with a nested expression');
 		
-		check(jsiq.query('{ "1" : "bar" }.(1)'), "bar", 'object lookup with a nested expression');
+		check(jsiq.query('{ "1" : "bar" }.(1)'), ["bar"], 'object lookup with a nested expression');
 		
-		check(jsiq.query('let $field := "foo" || "bar" return { "foobar" : "bar" }.$field'), "bar", 'object lookup with variable reference');
+		check(jsiq.query('let $field := "foo" || "bar" return { "foobar" : "bar" }.$field'), ["bar"], 'object lookup with variable reference');
 		
-		check(jsiq.query('[]'), [], 'array');
+		check(jsiq.query('[]'), [[]], 'array');
 		
-		check(jsiq.query('[ 1, 2, 3, 4, 5, 6 ]'), [ 1, 2, 3, 4, 5, 6 ], 'array construction');
+		check(jsiq.query('[ 1, 2, 3, 4, 5, 6 ]'), [[ 1, 2, 3, 4, 5, 6 ]], 'array construction');
 		
-		check(jsiq.query('[[1]]'), [[1]], 'nested array');
+		check(jsiq.query('[ 1, 2, 3, (4, 5, 6) ]'), [[ 1, 2, 3, 4, 5, 6 ]], 'array construction with sequence');
 		
-		check(jsiq.query('[[1, 2]]'), [[1, 2]], 'nested array');
+		check(jsiq.query('[[1]]'), [[[1]]], 'nested array');
 		
-		check(jsiq.query('[[1, 2], 1]'), [[1, 2], 1], 'nested array');
+		check(jsiq.query('[[1, 2]]'), [[[1, 2]]], 'nested array');
 		
-		check(jsiq.query('[[]]'), [[]], 'empty nested array');
+		check(jsiq.query('[[1, 2], 1]'), [[[1, 2], 1]], 'nested array');
+		
+		check(jsiq.query('[[]]'), [[[]]], 'empty nested array');
 		
 		check(jsiq.query('[0, [1]], [[0], 1]'), [[0, [1]], [[0], 1]], 'non-empty nested array');
 		
 		check(jsiq.query('[ "foo", 3.14, [ "Go", "Boldly", "Where", "No", "Man", "Has", "Gone", "Before" ], { "foo" : "bar" }, true, false, null ]'),
-			[ "foo", 3.14, [ "Go", "Boldly", "Where", "No", "Man", "Has", "Gone", "Before" ], { "foo" : "bar" }, true, false, null ], 'nested array construction');
+			[[ "foo", 3.14, [ "Go", "Boldly", "Where", "No", "Man", "Has", "Gone", "Before" ], { "foo" : "bar" }, true, false, null ]], 'nested array construction');
 			
-		check(jsiq.query('[ "foo", "bar" ][#2#]'), "bar", 'basic array indexing');
+		check(jsiq.query('[ "foo", "bar" ][#2#]'), ["bar"], 'basic array indexing');
 		
 		check(jsiq.query('([ 1, 2, 3 ], [ 4, 5, 6 ])[#2#]'), [2, 5], 'multi array indexing');
 		
 		check(jsiq.query('([ 1, 2, 3 ], [ 4, 5, 6 ], { "foo" : "bar" }, true)[#3#]'), [3, 6], 'multi array mixed indexing');
 		
-		check(jsiq.query('[ "foo", "bar" ] [# 1 + 1 #]'), "bar", 'multi array expression indexing');
+		check(jsiq.query('[ "foo", "bar" ] [# 1 + 1 #]'), ["bar"], 'multi array expression indexing');
 		
 		check(jsiq.query('[ "foo", "bar" ][]'), ["foo", "bar"], 'array unboxing');
 		
 		check(jsiq.query('([ "foo", "bar" ], { "foo" : "bar" }, true, [ 1, 2, 3 ] )[]'), ["foo", "bar", 1, 2, 3], 'multi mixed array unboxing');
 		
-		check(jsiq.query('(1 to 10)[2]'), 2, 'sequence predicate indexing');
+		check(jsiq.query('(1 to 10)[2]'), [2], 'sequence predicate indexing');
 		
 		check(jsiq.query('(1 to 10)[$$ mod 2 eq 0]'), [2, 4, 6, 8, 10], 'sequence predicate context indexing');
 		
-		check(jsiq.query('if (1 + 1 eq 2) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition boolexpr');
+		check(jsiq.query('if (1 + 1 eq 2) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "yes" }], 'if condition boolexpr');
 		
-		check(jsiq.query('if (null) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition null');
+		check(jsiq.query('if (null) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "no" }], 'if condition null');
 		
-		check(jsiq.query('if (1) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition 1');
+		check(jsiq.query('if (1) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "yes" }], 'if condition 1');
 		
-		check(jsiq.query('if (0) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition 0');
+		check(jsiq.query('if (0) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "no" }], 'if condition 0');
 		
-		check(jsiq.query('if ("foo") then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition string');
+		check(jsiq.query('if ("foo") then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "yes" }], 'if condition string');
 		
-		check(jsiq.query('if ("") then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition empty string');
+		check(jsiq.query('if ("") then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "no" }], 'if condition empty string');
 		
-		check(jsiq.query('if (()) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "no" }, 'if condition empty sequence');
+		check(jsiq.query('if (()) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "no" }], 'if condition empty sequence');
 		
-		check(jsiq.query('if (({ "foo" : "bar" }, [ 1, 2, 3, 4])) then { "foo" : "yes" } else { "foo" : "no" }'), { "foo" : "yes" }, 'if condition sequence');
+		check(jsiq.query('if (({ "foo" : "bar" }, [ 1, 2, 3, 4])) then { "foo" : "yes" } else { "foo" : "no" }'), [{ "foo" : "yes" }], 'if condition sequence');
 		
-		check(jsiq.query('if (1+1 eq 2) then { "foo" : "yes" } else ()'), { "foo" : "yes" }, 'if condition no else');
+		check(jsiq.query('if (1+1 eq 2) then { "foo" : "yes" } else ()'), [{ "foo" : "yes" }], 'if condition no else');
 		
-		check(jsiq.query('switch ("foo") case "bar" return "foo" case "foo" return "bar" default return "none"'), "bar", 'switch case');
+		check(jsiq.query('switch ("foo") case "bar" return "foo" case "foo" return "bar" default return "none"'), ["bar"], 'switch case');
 		
-		check(jsiq.query('switch ("no-match") case "bar" return "foo" case "foo" return "bar" default return "none"'), "none", 'switch case default');
+		check(jsiq.query('switch ("no-match") case "bar" return "foo" case "foo" return "bar" default return "none"'), ["none"], 'switch case default');
 		
-		check(jsiq.query('switch (2) case 1 + 1 return "foo" case 2 + 2 return "bar" default return "none"'), "foo", 'switch case expression');
+		check(jsiq.query('switch (2) case 1 + 1 return "foo" case 2 + 2 return "bar" default return "none"'), ["foo"], 'switch case expression');
 		
-		check(jsiq.query('switch (true) case 1 + 1 eq 2 return "1 + 1 is 2" case 2 + 2 eq 5 return "2 + 2 is 5" default return "none of the above is true"'), "1 + 1 is 2", 'switch case expression math');
+		check(jsiq.query('switch (true) case 1 + 1 eq 2 return "1 + 1 is 2" case 2 + 2 eq 5 return "2 + 2 is 5" default return "none of the above is true"'), ["1 + 1 is 2"], 'switch case expression math');
 		
-		check(jsiq.query('let $x := 1 return $x'), 1, 'let flowr');
+		check(jsiq.query('let $x := 1 return $x'), [1], 'let flowr');
 		
 		check(jsiq.query('for $x in (1, 2, 3) return $x'), [1, 2, 3], 'for flowr');
 		
@@ -167,7 +169,7 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 			[{value: 1, names: ["jim", "joe"]}, {value: 2, names: ["john"]}], 'group by using aggregated props');
 		
 		check(jsiq.query('for $x in ({val: 2}, {val: 1}, {val: 1}) group by $value := $x.val where count($x) gt 1 return {value: $value, count: count($x)}'),
-			{value: 1, count: 2}, 'group by with constraint');
+			[{value: 1, count: 2}], 'group by with constraint');
 		
 		check(jsiq.query('(1 to 5) ! ($$ * 2)'), [2, 4, 6, 8, 10], 'simple map');
 		
@@ -202,9 +204,9 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 		];
 		jsiq.collection('movies', movies);
 		
-		check(jsiq.query('collection("one-object")'), oneobj[0], 'one object collection');
+		check(jsiq.query('collection("one-object")'), [oneobj[0]], 'one object collection');
 		
-		check(jsiq.query('collection("one-object").foo'), 'bar', 'one object lookup');
+		check(jsiq.query('collection("one-object").foo'), ['bar'], 'one object lookup');
 		
 		check(jsiq.query('collection("captains").name'),
 			["James T. Kirk", "Jean-Luc Picard", "Benjamin Sisko", "Kathryn Janeway", "Jonathan Archer", "Samantha Carter"], 'object lookup with iteration');
@@ -283,7 +285,7 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 			], 'where join with collection');
 		
 		check(jsiq.query('for $x in collection("captains") where $x.name eq "Kathryn Janeway" return $x.series'),
-			[ "The next generation", "Voyager" ], 'where with collection');
+			[["The next generation", "Voyager"]], 'where with collection');
 		
 		check(jsiq.query('for $x in collection("captains") order by $x.name return $x'),
 			[
@@ -342,17 +344,19 @@ require(['QUnit', 'jsiq'], function(QUnit, jsiq)
 			], 'group by aggregate with collection');
 		
 		check(jsiq.query('for $x in collection("captains") group by $century := $x.century where count($x) gt 1 return { "century" : $century, "count" : count($x) }'),
-			{ "century" : 24, "count" : 4 }, 'group by condition with collection');
+			[{ "century" : 24, "count" : 4 }], 'group by condition with collection');
 		
 		check(jsiq.query('for $x in collection("captains") let $century := $x.century group by $century let $number := count($x) where $number gt 1 return { "century" : $century, "count" : $number }'),
-			{ "century" : 24, "count" : 4 }, 'group let where with collection');
+			[{ "century" : 24, "count" : 4 }], 'group let where with collection');
 		
 		jsiq.func('json', function(seq)
 		{
-			return JSON.parse(seq.string());
+			return JSON.parse(seq);
 		});
 		
-		jsiq.query("json('{\"foo\": 1}').foo", 1, 'invoke custom function');
+		check(jsiq.query("json('{\"foo\": 1}').foo"), [1], 'invoke custom function');
+		
+		check(jsiq.query("[()]"), [], 'empty sequence to array');
 	});
 	
 	// start QUnit.

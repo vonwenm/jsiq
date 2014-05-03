@@ -81,10 +81,19 @@ define(['jsiqparser'], function(parser)
 		value: {
 			value: function()
 			{
-				if (this.items.length === 1)
-					return this.items[0];
-				
 				return this.items;
+			}
+		},
+		single: {
+			value: function()
+			{
+				if (this.empty())
+					return null;
+				
+				if (this.items.length !== 1)
+					throw new Error("can't convert sequence of multiple items to a single value");
+				
+				return this.items[0];
 			}
 		},
 		//interprets the sequence as a boolean
@@ -94,7 +103,10 @@ define(['jsiqparser'], function(parser)
 				if (!this.items.length)
 					return false;
 				
-				return !!this.value();
+				if (this.items.length > 1)
+					return true;
+				
+				return !!this.single();
 			}
 		},
 		//interprets the sequence as a string
@@ -114,10 +126,7 @@ define(['jsiqparser'], function(parser)
 		number: {
 			value: function()
 			{
-				if (this.items.length !== 1)
-					throw new Error("can't convert sequence that doesn't have one element to a number");
-				
-				var num = +this.items[0];
+				var num = +this.single();
 				if (num !== num)
 					throw new Error("can't coalesce sequence to number");
 				
@@ -128,21 +137,21 @@ define(['jsiqparser'], function(parser)
 		atomize: {
 			value: function()
 			{
-				if (this.empty())
-					return null;
-				
-				var value = this.value();
+				var value = this.single();
+				if (value === null || value === undefined)
+					return value;
+
 				var type = typeof value;
 				switch(type)
 				{
 					case "number":
 					case "string":
 					case "boolean":
-					case "undefined":
 						return value;
 				}
-				if (value === null)
-					return value;
+				
+				if (value instanceof Date)
+					return value.getTime();
 				else
 					throw new Error("can't atomize sequence of type " + type);
 			}
@@ -357,7 +366,14 @@ define(['jsiqparser'], function(parser)
 					{
 						self.adopt(propvalues[i][0], propvalues[i][1]);
 						var seqval = propvalues[i][1].eval();
-						obj[ propvalues[i][0].eval().string() ] = seqval.empty() ? null : seqval.value();
+						var prop = propvalues[i][0].eval().string();
+						
+						if (seqval.empty())
+							obj[ prop ] = null;
+						else if (seqval.length() === 1)
+							obj[ prop ] = seqval.single();
+						else
+							obj[ prop ] = seqval.items;
 					}
 				
 					return toseq(obj);
@@ -376,7 +392,7 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(arrexpr, idxexpr);
-					return arrexpr.eval().index(idxexpr.eval().value());
+					return arrexpr.eval().index(idxexpr.eval().number());
 				});
 			},
 			unbox: function(arrexpr)
@@ -481,8 +497,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() == twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() == twoexpr.eval().single());
 				});
 			},
 			ne: function(oneexpr, twoexpr)
@@ -490,8 +506,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() != twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() != twoexpr.eval().single());
 				});
 			},
 			lt: function(oneexpr, twoexpr)
@@ -499,8 +515,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() < twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() < twoexpr.eval().single());
 				});
 			},
 			le: function(oneexpr, twoexpr)
@@ -508,8 +524,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() <= twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() <= twoexpr.eval().single());
 				});
 			},
 			gt: function(oneexpr, twoexpr)
@@ -517,8 +533,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() > twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() > twoexpr.eval().single());
 				});
 			},
 			ge: function(oneexpr, twoexpr)
@@ -526,8 +542,8 @@ define(['jsiqparser'], function(parser)
 				return new Expression(function(self)
 				{
 					self.adopt(oneexpr, twoexpr);
-					
-					return toseq(oneexpr.eval().value() >= twoexpr.eval().value());
+					//TODO support element comparison for sequences containing multiple items
+					return toseq(oneexpr.eval().single() >= twoexpr.eval().single());
 				});
 			},
 			and: function(oneexpr, twoexpr)
@@ -578,11 +594,11 @@ define(['jsiqparser'], function(parser)
 							return toseq(val);
 					}
 					
-					return toseq(exprarray.map(function(expr)
+					return toseq(mapmany(exprarray, function(expr)
 					{
 						self.adopt(expr);
 						
-						return expr.eval().value();
+						return expr.eval().items;
 					}));
 				});
 			},
@@ -593,19 +609,23 @@ define(['jsiqparser'], function(parser)
 					self.adopt(expr, predicate);
 					
 					var queried = expr.eval();
-					var number = predicate.eval().value();
-					if (typeof number === "number" && number % 1 === 0)
-						return toseq(queried.at(number - 1)); //if predicate evaluates to an integer, return the item at index
-
+					var number = undefined;
+					//do it this way as to only swallow the exception of number conversion and nothing else
+					try { number = predicate.eval().number(); } catch(e) {}
+					
+					//if predicate evaluates to an integer, return the item at index
+					if (number !== undefined)
+						return toseq(queried.at(number - 1));
+						
 					var results = [];
-					var values = queried.value();
+					var values = queried.items;
 					for(var i = 0; i < values.length; ++i)
 					{
 						predicate.scope.set('$$', atomicexpr(values[i]));
 						if (predicate.eval().boolean())
 							results.push(values[i]);
 					}
-					
+				
 					return new Sequence(results);
 				});
 			},
@@ -615,7 +635,7 @@ define(['jsiqparser'], function(parser)
 				{
 					var expr = self.scope.lookup('$$');
 					if (expr === undefined)
-						return toseq(0);
+						return toseq(undefined);
 					
 					return expr.eval();
 				});
@@ -939,6 +959,20 @@ define(['jsiqparser'], function(parser)
 		return Object.prototype.toString.call(arr) == '[object Array]';
 	}
 	
+	function mapmany(source, fun)
+	{
+		var dest = [];
+		for(var i = 0; i < source.length; ++i)
+		{
+			var res = fun(source[i]);
+			for(var j = 0; j < res.length; ++j)
+			{
+				dest.push(res[j]);
+			}
+		}
+		return dest;
+	}
+	
 	//flattens arrays recursively
 	function flatten(arr, flat)
 	{
@@ -982,9 +1016,15 @@ define(['jsiqparser'], function(parser)
 		},
 		
 		//registers a function that can be called by a jsoniq expression
+		//functions can accept an arbitrary number of parameters (values, not sequences)
+		//and return a value
 		func: function(name, fun)
 		{
-			parser.yy.funcs[name] = fun;
+			parser.yy.funcs[name] = function()
+			{
+				var argvals = Array.prototype.slice.call(arguments).map(function(itm){ return itm.value(); });
+				return fun.apply(undefined, argvals);
+			};
 		}
 	};
 });
